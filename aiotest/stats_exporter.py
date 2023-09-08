@@ -5,7 +5,6 @@ import psutil
 import asyncio
 import hashlib
 from prometheus_client import Histogram, Gauge, Counter, start_http_server
-from aiotest import runners 
 from aiotest import events
 from aiotest.rpc.protocol import Message
 from aiotest.log import logger
@@ -47,10 +46,9 @@ def parse_error(error):
     return string_error.replace(hex_address, "0x....")
 
 
-async def on_request(request_name, request_method, response_time, response_length, error):
-    runner = runners.global_runner  
+async def on_request(runner, request_name, request_method, response_time, response_length, error):
     if not error:
-        if isinstance(runner, runners.WorkerRunner):
+        if type(runner).__name__ == "WorkerRunner":
             try:
                 await runner.worker.send(
                     Message(
@@ -73,7 +71,7 @@ async def on_request(request_name, request_method, response_time, response_lengt
             aiotest_response_content_length.labels(request_name, request_method, 200).set(response_length)  
     else:
         error = parse_error(error) 
-        if isinstance(runner, runners.WorkerRunner):
+        if type(runner).__name__ == "WorkerRunner":
             try:
                 await runner.worker.send(
                     Message(
@@ -103,10 +101,9 @@ async def on_request(request_name, request_method, response_time, response_lengt
                 STATSERROR[key] += 1
 
       
-async def on_error(error):
-    runner = runners.global_runner
+async def on_error(runner, error):
     error = parse_error(error)
-    if isinstance(runner, runners.WorkerRunner):
+    if type(runner).__name__ == "WorkerRunner":
         try:
             await runner.worker.send(Message("error", {"error": error}, runner.worker_id))
         except:
@@ -121,8 +118,7 @@ async def on_error(error):
             STATSERROR[key] += 1
         
 
-async def on_worker_report(worker_id, data):
-    runner = runners.global_runner
+async def on_worker_report(runner, worker_id, data):
     if worker_id not in runner.workers:
         logger.warning(f"Discarded report from unrecognized worker {worker_id}")
         return
@@ -137,34 +133,33 @@ async def on_worker_report(worker_id, data):
         key = create_key(data["error"], data["request_name"], data["request_method"])
         if not STATSERROR.get(key):
             STATSERROR[key] = 1
-            logger.error(f'{data["request_name"]}: {data["response_data"]}')
+            logger.error(f'{data["request_name"]}: {data["error"]}')
         else:
             STATSERROR[key] += 1
 
     aiotest_workers_user_count.labels(worker_id).set(data["user_count"])         
 
 
-async def exporter_cpu_usage(worker_id):
+async def exporter_cpu_usage(runner):
     process = psutil.Process()
     while True:
         cpu_usage = process.cpu_percent() # 当前进程CPU利用率的百分比
-        if worker_id == "Master":
+        if type(runner).__name__ == "MasterRunner":
             aiotest_workers_cpu_usage.labels("Master").set(cpu_usage)
-            for id, worker in runners.global_runner.workers.items():
+            for id, worker in runner.workers.items():
                 aiotest_workers_cpu_usage.labels(id).set(worker.cpu_usage)
             if cpu_usage >= 90:
                 logger.warning(f"Master CPU usage {cpu_usage}!")
-        elif worker_id == "Local":
+        elif type(runner).__name__ == "LocalRunner":
             aiotest_workers_cpu_usage.labels("Local").set(cpu_usage)  
             if cpu_usage >= 90:
                 logger.warning(f"Local CPU usage {cpu_usage}!")
         else:
-            runners.global_runner.cpu_usage = cpu_usage
+            runner.cpu_usage = cpu_usage
         await asyncio.sleep(CPU_MONITOR_INTERVAL)
 
 
-async def exporter_user_count():
-    runner = runners.global_runner
+async def exporter_user_count(runner):
     while True:
         aiotest_workers_user_count.labels("local").set(runner.user_count)
         await asyncio.sleep(USER_MONITOR_INTERVAL)

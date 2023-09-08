@@ -9,13 +9,14 @@ from aiotest.user import AsyncHttpUser
 from aiotest.stats_exporter import parse_error
 from aiotest import events
 from aiotest.test.setting import BASE_URL, P1, P2, P3
+from aiotest import runners
 
 
 request_dict = {}
 error_dict = {}
 
 
-async def on_request(request_name, request_method, response_time, response_length, error):
+async def on_request(runner, request_name, request_method, response_time, response_length, error):
     global request_dict
     request_dict = {}
     if error:
@@ -29,7 +30,7 @@ async def on_request(request_name, request_method, response_time, response_lengt
     }
 
 
-async def on_error(error):
+async def on_error(runner, error):
     global error_dict
     error_dict = {}
     if error:
@@ -103,7 +104,7 @@ class TestAsyncHttpUser:
                     await self.on_stop()
                     raise
                 except Exception as e:
-                    await events.user_error.fire(error=f"{sys.exc_info()[0].__name__}: {e}" + "".join(traceback.format_tb(sys.exc_info()[2])).strip())
+                    await events.user_error.fire(runner=runners.global_runner, error=f"{sys.exc_info()[0].__name__}: {e}" + "".join(traceback.format_tb(sys.exc_info()[2])).strip())
 
         u =MyUser()
         await u.start()
@@ -135,7 +136,7 @@ class TestAsyncHttpUser:
                     await self.on_stop()
                     raise
                 except Exception as e:
-                    await events.user_error.fire(error=f"{sys.exc_info()[0].__name__}: {e}" + "".join(traceback.format_tb(sys.exc_info()[2])).strip())
+                    await events.user_error.fire(runners.global_runner, error=f"{sys.exc_info()[0].__name__}: {e}" + "".join(traceback.format_tb(sys.exc_info()[2])).strip())
 
         u =MyUser()
         await u.start()
@@ -167,7 +168,7 @@ class TestAsyncHttpUser:
                     await self.on_stop()
                     raise
                 except Exception as e:
-                    await events.user_error.fire(error=f"{sys.exc_info()[0].__name__}: {e}" + "".join(traceback.format_tb(sys.exc_info()[2])).strip())
+                    await events.user_error.fire(runner=runners.global_runner, error=f"{sys.exc_info()[0].__name__}: {e}" + "".join(traceback.format_tb(sys.exc_info()[2])).strip())
 
         u =MyUser()
         await u.start()
@@ -199,7 +200,7 @@ class TestAsyncHttpUser:
                     await self.on_stop()
                     raise
                 except Exception as e:
-                    await events.user_error.fire(error=f"{sys.exc_info()[0].__name__}: {e}" + "".join(traceback.format_tb(sys.exc_info()[2])).strip())
+                    await events.user_error.fire(runner=runners.global_runner, error=f"{sys.exc_info()[0].__name__}: {e}" + "".join(traceback.format_tb(sys.exc_info()[2])).strip())
 
         u =MyUser()
         await u.start()
@@ -231,7 +232,7 @@ class TestAsyncHttpUser:
                     await self.on_stop()
                     raise
                 except Exception as e:
-                    await events.user_error.fire(error=f"{sys.exc_info()[0].__name__}: {e}" + "".join(traceback.format_tb(sys.exc_info()[2])).strip())
+                    await events.user_error.fire(runner=runners.global_runner, error=f"{sys.exc_info()[0].__name__}: {e}" + "".join(traceback.format_tb(sys.exc_info()[2])).strip())
 
         u =MyUser()
         await u.start()
@@ -260,7 +261,7 @@ class TestAsyncHttpUser:
                     await self.on_stop()
                     raise
                 except Exception as e:
-                    await events.user_error.fire(error=f"{sys.exc_info()[0].__name__}: {e}" + "".join(traceback.format_tb(sys.exc_info()[2])).strip())
+                    await events.user_error.fire(runner=runners.global_runner, error=f"{sys.exc_info()[0].__name__}: {e}" + "".join(traceback.format_tb(sys.exc_info()[2])).strip())
 
         u =MyUser()
         await u.start()
@@ -292,7 +293,7 @@ class TestAsyncHttpUser:
                     await self.on_stop()
                     raise
                 except Exception as e:
-                    await events.user_error.fire(error=f"{sys.exc_info()[0].__name__}: {e}" + "".join(traceback.format_tb(sys.exc_info()[2])).strip())
+                    await events.user_error.fire(runner=runners.global_runner, error=f"{sys.exc_info()[0].__name__}: {e}" + "".join(traceback.format_tb(sys.exc_info()[2])).strip())
 
         u =MyUser()
         with pytest.raises(asyncio.exceptions.CancelledError):
@@ -322,7 +323,7 @@ class TestAsyncHttpUser:
                     await self.on_stop()
                     raise
                 except Exception as e:
-                    await events.user_error.fire(error=f"{sys.exc_info()[0].__name__}: {e}" + "".join(traceback.format_tb(sys.exc_info()[2])).strip())
+                    await events.user_error.fire(runner=runners.global_runner, error=f"{sys.exc_info()[0].__name__}: {e}" + "".join(traceback.format_tb(sys.exc_info()[2])).strip())
 
         u =MyUser()
         await u.start()
@@ -356,7 +357,7 @@ class TestAsyncHttpUser:
                     await self.on_stop()
                     raise
                 except Exception as e:
-                    await events.user_error.fire(error=f"{sys.exc_info()[0].__name__}: {e}" + "".join(traceback.format_tb(sys.exc_info()[2])).strip())
+                    await events.user_error.fire(runner=runners.global_runner, error=f"{sys.exc_info()[0].__name__}: {e}" + "".join(traceback.format_tb(sys.exc_info()[2])).strip())
 
         u =MyUser()
         await u.start()

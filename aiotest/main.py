@@ -15,8 +15,8 @@ from aiotest.stats_exporter import STATSERROR
 from aiotest.log import logger, setup_logging
 from aiotest.shape import LoadUserShape
 from aiotest.user import User
-from aiotest import runners
 from aiotest import events
+from aiotest import runners
 from aiotest.runners import LocalRunner, MasterRunner, WorkerRunner
 
 
@@ -111,6 +111,8 @@ async def parse_options(args=None):
 
     parser.add_argument(
         '-t', '--run-time',
+        type=str,
+        default=None,
         help="Stop after the specified amount of time, e.g. (300s, 20m, 3h, 1h30m, etc.). Only used together with --no-web"
     )    
     
@@ -257,9 +259,9 @@ def parse_timespan(time_str):
     return int(timedelta(**time_params).total_seconds())
 
 
-async def main():
-    options = parse_options()
-
+async def main(options):
+    # options = await parse_options()
+    
     loglevel = options.loglevel.upper()
     if loglevel in ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]:
         logfile = options.logfile
@@ -326,8 +328,6 @@ async def main():
         except ValueError:
             logger.error("Valid --run-time formats are: 20, 20s, 3m, 2h, 1h20m, 3h30m10s, etc.")
             sys.exit(1)
-    else:
-        options.run_time = None
     
     if options.master:
         runners.global_runner = MasterRunner(user_classes, shape_class, options)
@@ -365,7 +365,7 @@ async def main():
             sys.exit(1)
         else:
             sys.exit(0)
-        
+
 
     
 

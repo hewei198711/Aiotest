@@ -26,7 +26,7 @@ test_start = False
 test_stop = False
 
 
-async def on_request(request_name, request_method, response_time, response_length, error):
+async def on_request(runner, request_name, request_method, response_time, response_length, error):
     global request_dict
     request_dict = {}
     if error:
@@ -39,7 +39,7 @@ async def on_request(request_name, request_method, response_time, response_lengt
         "error": error,
     }
 
-async def on_error(error):
+async def on_error(runner, error):
     global error_dict
     error_dict = {}
     if error:
@@ -48,7 +48,7 @@ async def on_error(error):
         "error": error,
     }
 
-async def on_worker_report(worker_id, data):
+async def on_worker_report(runner, worker_id, data):
     global request_dict, user_count_dict
     runner = runners.global_runner
     if worker_id not in runner.workers:

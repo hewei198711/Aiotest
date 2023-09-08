@@ -24,6 +24,7 @@ pip install aiotest -i https://pypi.python.org/pypi
 ```python
 import asyncio
 from aiotest import AsyncHttpUser, LoadUserShape
+from aiotest import runners
 
 class TestUser(AsyncHttpUser):
     "用户类必须以 Test 开头或结尾，且继承 AsyncHttpUser"
@@ -77,7 +78,7 @@ class TestUser(AsyncHttpUser):
             await self.on_stop()
             raise
         except Exception as e:
-            await events.user_error.fire(error=f"{sys.exc_info()[0].__name__}: {e}" + "".join(traceback.format_tb(sys.exc_info()[2])).strip())
+            await events.user_error.fire(runner=runners.global_runner, error=f"{sys.exc_info()[0].__name__}: {e}" + "".join(traceback.format_tb(sys.exc_info()[2])).strip())
 
 
     class TestShape(LoadUserShape):

@@ -91,7 +91,7 @@ from aiohttp.tracing import Trace, TraceConfig
 from aiohttp.typedefs import Final, JSONEncoder, LooseCookies, LooseHeaders, StrOrURL
 from aiotest import events
 from aiotest.exception import CatchResponseError
-from aiotest.log import logger
+from aiotest import runners
 
 __all__ = (
     # client_exceptions
@@ -1225,17 +1225,17 @@ class _RequestContextManager(_BaseRequestContextManager[ClientResponse]):
         
         if self._manual_result:
             if self._manual_result is True:
-                await events.stats_request.fire(**self._resp.request_meta)
+                await events.stats_request.fire(runner=runners.global_runner, **self._resp.request_meta)
             elif isinstance(self._manual_result, Exception):
                 self._resp.request_meta["error"] = self._manual_result
-                await events.stats_request.fire(**self._resp.request_meta)
+                await events.stats_request.fire(runner=runners.global_runner, **self._resp.request_meta)
             self._resp.release()
             # we want other unknown exceptions to be raised
             return exc_type is None
         if exc_type:
             if isinstance(exc, REQUESTERRORS):
                 self._resp.request_meta["error"] = f"{sys.exc_info()[0].__name__}: {exc}" + "".join(traceback.format_tb(sys.exc_info()[2])).strip()
-                await events.stats_request.fire(**self._resp.request_meta)
+                await events.stats_request.fire(runner=runners.global_runner, **self._resp.request_meta)
             else:
                 self._resp.release()
                 # we want other unknown exceptions to be raised
@@ -1245,7 +1245,7 @@ class _RequestContextManager(_BaseRequestContextManager[ClientResponse]):
                 self._resp.raise_for_status()
             except ClientResponseError as e:
                 self._resp.request_meta["error"] = e
-            await events.stats_request.fire(**self._resp.request_meta)
+            await events.stats_request.fire(runner=runners.global_runner, **self._resp.request_meta)
         
         self._resp.release()
         return True

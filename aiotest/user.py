@@ -7,7 +7,7 @@ import traceback
 from aiohttp.client_exceptions import ClientResponseError
 from aiotest import events
 from aiotest.client import ClientSession
-from aiotest.log import logger
+from aiotest import runners
 
 
 class UserMeta(type):
@@ -75,7 +75,7 @@ class User(metaclass=UserMeta):
             await self.on_stop()
             raise
         except Exception as e:
-            await events.user_error.fire(error=f"{sys.exc_info()[0].__name__}: {e}" + "".join(traceback.format_tb(sys.exc_info()[2])).strip())
+            await events.user_error.fire(runner=runners.global_runner, error=f"{sys.exc_info()[0].__name__}: {e}" + "".join(traceback.format_tb(sys.exc_info()[2])).strip())
 
 
 class AsyncHttpUser(User):

@@ -233,9 +233,9 @@ class Runner:
 class LocalRunner(Runner):
     def __init__(self, user_classes, shape_class, options):
         super().__init__(user_classes, shape_class, options)
-        user_count_task = asyncio.create_task(exporter_user_count(), name="user_count_task")
+        user_count_task = asyncio.create_task(exporter_user_count(self), name="user_count_task")
         prometheus_task = asyncio.create_task(prometheus_server(), name="prometheus")
-        monitor_cpu_task = asyncio.create_task(exporter_cpu_usage("Local"), name="monitor_cpu")
+        monitor_cpu_task = asyncio.create_task(exporter_cpu_usage(self), name="monitor_cpu")
         
         self.tasks.append(user_count_task)
         self.tasks.append(prometheus_task)
@@ -318,7 +318,7 @@ class MasterRunner(DistributedRunner):
         worekr_heartbeat_task = asyncio.create_task(self.worker_heartbeat(), name="worekr_heartbeat")
         worekr_listener_task = asyncio.create_task(self.worekr_listener(), name="worekr_listener")
         prometheus_task = asyncio.create_task(prometheus_server(), name="prometheus")
-        monitor_cpu_task = asyncio.create_task(exporter_cpu_usage("Master"), name="monitor_cpu")
+        monitor_cpu_task = asyncio.create_task(exporter_cpu_usage(self), name="monitor_cpu")
         
         self.tasks.append(worekr_heartbeat_task)
         self.tasks.append(worekr_listener_task)
@@ -442,9 +442,9 @@ class MasterRunner(DistributedRunner):
                     logger.warning(f"Discarded report from unrecognized worker {worker_id}")
                 else:
                     self.workers[worker_id].user_count = msg.data["user_count"]
-                await events.worker_report.fire(worker_id=worker_id, data=msg.data)
+                await events.worker_report.fire(runner=self, worker_id=worker_id, data=msg.data)
             elif msg.type == "error":
-                await events.user_error.fire(error=msg.data["error"])   
+                await events.user_error.fire(runner=self, error=msg.data["error"])   
             elif msg.type == "ready":
                 self.workers[worker_id] = WorkerNode(id=worker_id)
                 logger.info(f"Worker {worker_id} reported as ready. Currently {self.worker_count} workers ready to swarm.")
@@ -481,7 +481,7 @@ class WorkerRunner(DistributedRunner):
         
         heartbeat_task = asyncio.create_task(self.heartbeat(), name="heartbeat")
         worker_run_task = asyncio.create_task(self.worker_run(), name="worker_run")
-        monitor_cpu_task = asyncio.create_task(exporter_cpu_usage("Worker"), name="monitor_cpu")
+        monitor_cpu_task = asyncio.create_task(exporter_cpu_usage(self), name="monitor_cpu")
         
         self.tasks.append(heartbeat_task)
         self.tasks.append(worker_run_task)
@@ -550,6 +550,7 @@ class WorkerRunner(DistributedRunner):
             elif msg.type == "quit":
                 logger.info("Got quit message from master, shutting down...")
                 await self.quit()
+                break
             
     async def quit(self):
         "Exit the load test and cancel all runner tasks"

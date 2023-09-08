@@ -15,7 +15,7 @@ from aiotest.test.log import logger
 request_dict = {}
 
 
-async def on_request(request_name, request_method, response_time, response_length, error):
+async def on_request(runner, request_name, request_method, response_time, response_length, error):
     global request_dict
     request_dict = {}
     if error:

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "aiotest"
-version = "0.5.1"
+version = "0.5.2"
 authors = [
   { name="hewei", email="hewei1987@163.com" },
 ]
@@ -28,6 +28,7 @@ dependencies = [
   "yarl ==1.9.2",
   "psutil ==5.9.5",
   "prometheus-client ==0.17.1",
+  "tornado >=6.1",
   "uvloop ==0.17.0;platform_system!='Windows'",
 ]
 classifiers = [

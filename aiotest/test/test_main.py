@@ -85,13 +85,13 @@ class TestShape(LoadUserShape):
     @allure.title("find aiotestfile")
     async def test_01(self):
         aiotestfile = find_aiotestfile("aiotest/test/aiotestfile.py")
-        assert aiotestfile == r"D:\ligeit_github\Aiotest\aiotest\test\aiotestfile.py"
+        assert r"aiotest\test\aiotestfile.py" in aiotestfile
 
     @allure.severity(P3)
     @allure.title("find aiotestfile not .py")
     async def test_02(self):
         aiotestfile = find_aiotestfile("aiotest/test/aiotestfile")
-        assert aiotestfile == r"D:\ligeit_github\Aiotest\aiotest\test\aiotestfile.py"
+        assert r"aiotest\test\aiotestfile.py" in aiotestfile
 
     @allure.severity(P3)
     @allure.title("find aiotestfile not .py")

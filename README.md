@@ -16,6 +16,10 @@
 - 串行 & 并行执行待测API：默认串行执行 API coroutine，可重写user.start()方法，并行执行代测API（例如商城首页API互不为前置条件时，可并行）
 - 数据搜集 & 展示：基于Prometheus收集数据，Grafana展示数据
 
+```python
+# 下载
+pip install aiotest -i https://pypi.python.org/pypi
+```
 
 ```python
 import asyncio
@@ -100,7 +104,7 @@ class TestUser(AsyncHttpUser):
 
 ## 鸣谢
 
-- Aiotest 为 Locust 的 asyncio 重写版(1.参考Pytest简化待测Class/API收集; 2.抛弃TaskSet类,User内不内嵌User类,仅通过User.weight设置执行比例; 3.抛弃Stats类，通过Prometheus收集数据； 4.抛弃Web类，通过Grafana展示数据)
+- Aiotest 为 Locust 的 asyncio 重写版(1.参考Pytest简化待测Class/API收集; 2.抛弃TaskSet类,User类不内嵌User类,仅通过User.weight设置执行比例; 3.抛弃Stats类，通过Prometheus收集数据； 4.抛弃Web类，通过Grafana展示数据)
 
 * Locust: [locust.io](https://locust.io)
 

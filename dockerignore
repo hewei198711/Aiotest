@@ -1,0 +1,10 @@
+__pycache__/*
+.pytest_cache/*
+*.pyc
+.python-version
+venv/*
+.idea/*
+.vscode/*
+.gitignore
+aiotest/test/reports/*
+aiotest/test/log.log

@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=61", "wheel", "setuptools_scm>=6.2"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aiotest"
+version = "0.5.0"
+authors = [
+  { name="hewei", email="hewei1987@163.com" },
+]
+description = "Developer friendly load testing framework Based on asyncio"
+readme = "README.md"
+requires-python = ">=3.11.3"
+
+classifiers = [
+    "Topic :: Software Development :: Testing :: Traffic Generation",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Intended Audience :: Developers",
+    "Intended Audience :: System Administrators",
+    "Topic :: Software Development :: Testing",
+    "Topic :: Software Development :: Testing :: Traffic Generation",
+    "Topic :: System :: Distributed Computing",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/hewei198711/aiotest"

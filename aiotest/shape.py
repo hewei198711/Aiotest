@@ -2,7 +2,6 @@
 
 from timeit import default_timer
 from abc import ABCMeta, abstractmethod
-from aiotest import runners
 
 
 class LoadUserShape(metaclass=ABCMeta):

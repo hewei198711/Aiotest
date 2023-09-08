@@ -259,8 +259,8 @@ def parse_timespan(time_str):
     return int(timedelta(**time_params).total_seconds())
 
 
-async def main(options):
-    # options = await parse_options()
+async def main():
+    options = await parse_options()
     
     loglevel = options.loglevel.upper()
     if loglevel in ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]:

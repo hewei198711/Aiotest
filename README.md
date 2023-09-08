@@ -19,12 +19,10 @@
 
 ```python
 import asyncio
-import aiohttp
-from timeit import default_timer
 from aiotest import AsyncHttpUser, LoadUserShape
 
 class TestUser(AsyncHttpUser):
-    "用户类必须以 Test 开头或结尾，且继承 User class"
+    "用户类必须以 Test 开头或结尾，且继承 AsyncHttpUser"
     wait_time = 1 # 每个API request 之间休息时间，默认1秒
     weight = 1 # 用户类权重（可以有多个用户类：方便设置不同用户场景的执行比例）
     host = "https://uat.taobao.com"
@@ -34,7 +32,8 @@ class TestUser(AsyncHttpUser):
         "每个用户类首先，且仅执行一次，用于登录等初始化数据操作"
         url="/login", 
         data={"username": "test01", "password": "123456"}
-        async with session.post(url=url, data=data) as resp:
+        # self.session 为 aiohttp.ClientSession() 实例，可重写
+        async with self.session.post(url=url, data=data) as resp:
             data = await resp.json()
             self.token = data["token"]
 
@@ -92,6 +91,8 @@ class TestUser(AsyncHttpUser):
 ```
 
 ## 鸣谢
+
+- Aiotest 为 Locust 的 asyncio 重写版，同时参考Pytest简化待测Class, API收集，抛弃TaskSet类，通过不同用户类比重设置来简化场景设置
 
 * Locust: [locust.io](https://locust.io)
 

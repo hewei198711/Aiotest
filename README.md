@@ -16,9 +16,10 @@
 - 串行 & 并行执行待测API：默认串行执行 API coroutine，可重写user.start()方法，并行执行代测API（例如商城首页API互不为前置条件时，可并行）
 - 数据搜集 & 展示：基于Prometheus收集数据，Grafana展示数据
 
+## 下载安装
 ```python
-# 下载
-pip install aiotest -i https://pypi.python.org/pypi
+
+pip install aiotest
 ```
 
 ```python

@@ -4,13 +4,14 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "aiotest"
-version = "0.5.2"
+version = "0.5.6"
 authors = [
   { name="hewei", email="hewei1987@163.com" },
 ]
 description = "Developer friendly load testing framework Based on asyncio"
 readme = "README.md"
 requires-python = ">=3.11.3"
+license = {text = "MIT License"}
 dependencies = [
   "aiohttp ==3.8.5",
   "aiosignal ==1.3.1",
@@ -47,3 +48,6 @@ classifiers = [
 
 [project.urls]
 "Homepage" = "https://github.com/hewei198711/aiotest"
+
+[project.scripts]
+aiotest = "aiotest.main:run"

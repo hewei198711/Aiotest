@@ -139,7 +139,7 @@ async def parse_options(args=None):
     parser.add_argument(
         '-V', '--version',
         action='version',
-        version='%(prog)s {}'.format(version),
+        version= f'aiotest=={version}',
     )
 
     # Provides a hook to add command-line arguments
@@ -367,7 +367,13 @@ async def main():
             sys.exit(0)
 
 
-    
+def run():
+    if sys.platform != "win32": 
+        import uvloop
+        uvloop.install()
+
+    asyncio.run(main())
+
 
 
 

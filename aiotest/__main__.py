@@ -2,14 +2,7 @@
 
 import sys
 import asyncio
-from aiotest.main import main
+from aiotest.main import run
 
 
-if sys.platform == "win32": 
-    asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
-else:
-    import uvloop
-    uvloop.install()
-
-
-asyncio.run(main())
+run()

@@ -54,7 +54,7 @@ class TestUser(AsyncHttpUser):
     async def test_personalInfo(self):
         "待测试API,可通过success，failure 手动设置请求成功/失败"
         url = "/personalInfo"
-        async with session.get(url=url) as resp:
+        async with self.session.get(url=url) as resp:
             data = await resp.json()
             if data["id"] != "123456":
                 resp.failure("id != 123456")

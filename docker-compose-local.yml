@@ -1,0 +1,12 @@
+version: '3'
+  
+services:
+  local:
+    image: aiotest:0.5.7
+    ports:
+     - "8089:8089"
+     - "5557:5557"
+    volumes:
+      - ./:/root/aiotest
+    command: aiotest -f aiotestfile.py -L INFO --logfile logs/local.log
+    # docker-compose -f docker-compose-local.yml up -d

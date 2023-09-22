@@ -234,7 +234,7 @@ class LocalRunner(Runner):
     def __init__(self, user_classes, shape_class, options):
         super().__init__(user_classes, shape_class, options)
         user_count_task = asyncio.create_task(exporter_user_count(self), name="user_count_task")
-        prometheus_task = asyncio.create_task(prometheus_server(), name="prometheus")
+        prometheus_task = asyncio.create_task(prometheus_server(self.options.prometheus_port), name="prometheus")
         monitor_cpu_task = asyncio.create_task(exporter_cpu_usage(self), name="monitor_cpu")
         
         self.tasks.append(user_count_task)
@@ -317,7 +317,7 @@ class MasterRunner(DistributedRunner):
         
         worekr_heartbeat_task = asyncio.create_task(self.worker_heartbeat(), name="worekr_heartbeat")
         worekr_listener_task = asyncio.create_task(self.worekr_listener(), name="worekr_listener")
-        prometheus_task = asyncio.create_task(prometheus_server(), name="prometheus")
+        prometheus_task = asyncio.create_task(prometheus_server(self.options.prometheus_port), name="prometheus")
         monitor_cpu_task = asyncio.create_task(exporter_cpu_usage(self), name="monitor_cpu")
         
         self.tasks.append(worekr_heartbeat_task)

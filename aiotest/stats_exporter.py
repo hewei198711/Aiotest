@@ -4,7 +4,7 @@ import re
 import psutil
 import asyncio
 import hashlib
-from prometheus_client import Histogram, Gauge, Counter, start_http_server
+from prometheus_client import Gauge, Counter, start_http_server
 from aiotest import events
 from aiotest.rpc.protocol import Message
 from aiotest.log import logger
@@ -13,15 +13,14 @@ CPU_MONITOR_INTERVAL = 5 # CPU 监控时间间隔
 USER_MONITOR_INTERVAL = 5 # USER_COUNT 监控时间间隔
 STATSERROR = {} # 保存error
 
-BUCKETS = (300, 1000, 8000, float('inf'))
 LABELS = ["name", "method", "code"]
 
-aiotest_response_times = Histogram(name='aiotest_response_times', documentation='aiotest response times', labelnames=LABELS, buckets=BUCKETS)
+aiotest_workers_user_count = Gauge(name='aiotest_workers_user_count', documentation='aiotest workers user count', labelnames=["node"])
+aiotest_workers_cpu_usage = Gauge(name='aiotest_workers_cpu_usage', documentation='aiotest workers cpu usage', labelnames=["node"])
+aiotest_response_times = None
 aiotest_response_content_length = Gauge(name='aiotest_response_content_length', documentation='aiotest response content length', labelnames=LABELS)
 aiotest_response_failure = Counter(name='aiotest_response_failure', documentation='aiotest response failure', labelnames=["name","method", "error"])
 aiotest_user_error = Counter(name='aiotest_user_error', documentation='aiotest user error', labelnames=["error"])
-aiotest_workers_user_count = Gauge(name='aiotest_workers_user_count', documentation='aiotest workers user count', labelnames=["node"])
-aiotest_workers_cpu_usage = Gauge(name='aiotest_workers_cpu_usage', documentation='aiotest workers cpu usage', labelnames=["node"])
 
 code_regexp = re.compile(r"^\{\"code\":(\d{3})")
 
@@ -165,8 +164,8 @@ async def exporter_user_count(runner):
         await asyncio.sleep(USER_MONITOR_INTERVAL)
 
        
-async def prometheus_server():
-    start_http_server(8089)
+async def prometheus_server(port):
+    start_http_server(port)
 
 
 events.stats_request += on_request

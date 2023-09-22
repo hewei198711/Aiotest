@@ -11,6 +11,8 @@ from datetime import timedelta
 from pprint import pprint
 
 import aiotest
+from prometheus_client import Histogram
+from aiotest import stats_exporter
 from aiotest.stats_exporter import STATSERROR
 from aiotest.log import logger, setup_logging
 from aiotest.shape import LoadUserShape
@@ -114,6 +116,21 @@ async def parse_options(args=None):
         type=str,
         default=None,
         help="Stop after the specified amount of time, e.g. (300s, 20m, 3h, 1h30m, etc.). Only used together with --no-web"
+    )    
+
+    # prometheus
+    parser.add_argument(
+        '--prometheus-port',
+        type=int,
+        default=8089,
+        help="Port that metrics are exposed over HTTP, to be read by the Prometheus server."
+    )
+    
+    parser.add_argument(
+        '-b', '--buckets', 
+        type=int, nargs='*', 
+        default= [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 2000, 5000, 8000], 
+        help='Prometheus histogram buckets'
     )    
     
     # loglevel logfile
@@ -311,6 +328,7 @@ async def main():
    
     if shape_class and (num_users or rate or options.run_time):
         logger.warning("The specified aiotestfile contains a tacticss_class but a conflicting argument was specified: users or rate or run_time. Ignoring arguments")
+        options.run_time = None
 
     if options.show_users_wight:
         user_wight = {}
@@ -328,6 +346,10 @@ async def main():
         except ValueError:
             logger.error("Valid --run-time formats are: 20, 20s, 3m, 2h, 1h20m, 3h30m10s, etc.")
             sys.exit(1)
+    
+    options.buckets = sorted(set(options.buckets))
+    options.buckets.append(float('inf'))
+    stats_exporter.aiotest_response_times = Histogram(name='aiotest_response_times', documentation='aiotest response times', labelnames=["name", "method", "code"], buckets=tuple(options.buckets))
     
     if options.master:
         runners.global_runner = MasterRunner(user_classes, shape_class, options)

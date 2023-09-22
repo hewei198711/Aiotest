@@ -1,0 +1,212 @@
+// jenkinsfile reference
+pipeline {
+    agent any
+
+    stages {
+        // Pull code
+        stage('Gitlab Pull') {
+            steps {
+                // credentialsId ,url: set the value based on the actual situation
+                git branch:'main',credentialsId: '62KJGFbf-0041-4GEa-aDee-1212d7b738ee', poll: false, url: 'git@gitlab2.taobao.com:uat/aiotest_taobao.git'
+            }
+        }
+        // Distribute code to individual hosts
+        stage('SSH Server') {
+            steps {
+                sshPublisher(
+                    publishers: [
+                        sshPublisherDesc(
+                            configName: '192.11.40.22', 
+                            sshCredentials: [
+                                encryptedPassphrase: '{AQADFGGTREW34UHJGT5438Wde4iaoCRU=}', 
+                                key: '', 
+                                keyPath: '', 
+                                username: 'root'
+                            ], 
+                            transfers: [
+                                sshTransfer(
+                                    cleanRemote: false, 
+                                    excludes: '', 
+                                    execCommand: '''ls
+                                                    cd aiotest_uc
+                                                    chmod -R 777 ./*''', 
+                                    execTimeout: 300000, 
+                                    flatten: false, 
+                                    makeEmptyDirs: false, 
+                                    noDefaultExcludes: false, 
+                                    patternSeparator: '[, ]+', 
+                                    remoteDirectory: 'aiotest_uc', 
+                                    remoteDirectorySDF: false, 
+                                    removePrefix: '', 
+                                    sourceFiles: '**'
+                                )
+                            ], 
+                            usePromotionTimestamp: false, 
+                            useWorkspaceInPromotion: false, 
+                            verbose: false
+                        ),
+                        sshPublisherDesc(
+                            configName: '192.11.40.23', 
+                            sshCredentials: [
+                                encryptedPassphrase: '{AQADFGGTREW34UHJGT5438Wde4iaoCRU=}', 
+                                key: '', 
+                                keyPath: '', 
+                                username: 'root'
+                            ], 
+                            transfers: [
+                                sshTransfer(
+                                    cleanRemote: false, 
+                                    excludes: '', 
+                                    execCommand: '''ls
+                                                    cd aiotest_uc
+                                                    chmod -R 777 ./*''', 
+                                    execTimeout: 300000, 
+                                    flatten: false, 
+                                    makeEmptyDirs: false, 
+                                    noDefaultExcludes: false, 
+                                    patternSeparator: '[, ]+', 
+                                    remoteDirectory: 'aiotest_uc', 
+                                    remoteDirectorySDF: false, 
+                                    removePrefix: '', 
+                                    sourceFiles: '**'
+                                )
+                            ], 
+                            usePromotionTimestamp: false, 
+                            useWorkspaceInPromotion: false, 
+                            verbose: false
+                        ),
+                        sshPublisherDesc(
+                            configName: '192.11.40.24', 
+                            sshCredentials: [
+                                encryptedPassphrase: '{AQADFGGTREW34UHJGT5438Wde4iaoCRU=}', 
+                                key: '', 
+                                keyPath: '', 
+                                username: 'root'
+                            ], 
+                            transfers: [
+                                sshTransfer(
+                                    cleanRemote: false, 
+                                    excludes: '', 
+                                    execCommand: '''ls
+                                                    cd aiotest_uc
+                                                    chmod -R 777 ./*''', 
+                                    execTimeout: 300000, 
+                                    flatten: false, 
+                                    makeEmptyDirs: false, 
+                                    noDefaultExcludes: false, 
+                                    patternSeparator: '[, ]+', 
+                                    remoteDirectory: 'aiotest_uc', 
+                                    remoteDirectorySDF: false, 
+                                    removePrefix: '', 
+                                    sourceFiles: '**'
+                                )
+                            ], 
+                            usePromotionTimestamp: false, 
+                            useWorkspaceInPromotion: false, 
+                            verbose: false
+                        )
+                    ]
+                )
+            }
+        }
+        // Start distributed stress testing
+        stage('Aiotest Runner') {
+            steps {
+                sshPublisher(
+                    publishers: [
+                        sshPublisherDesc(
+                            configName: '192.11.40.22', 
+                            sshCredentials: [
+                                encryptedPassphrase: '{AQADFGGTREW34UHJGT5438Wde4iaoCRU=}', 
+                                key: '', 
+                                keyPath: '', 
+                                username: 'root'
+                            ], 
+                            transfers: [
+                                sshTransfer(
+                                    cleanRemote: false, 
+                                    excludes: '', 
+                                    execCommand: '''ls
+                                                    cd aiotest_uc
+                                                    docker-compose -f docker-compose-master.yml up -d''', 
+                                    execTimeout: 300000, 
+                                    flatten: false, 
+                                    makeEmptyDirs: false, 
+                                    noDefaultExcludes: false, 
+                                    patternSeparator: '[, ]+', 
+                                    remoteDirectory: '', 
+                                    remoteDirectorySDF: false, 
+                                    removePrefix: '', 
+                                    sourceFiles: ''
+                                )
+                            ], 
+                            usePromotionTimestamp: false, 
+                            useWorkspaceInPromotion: false, 
+                            verbose: true
+                        ),
+                        sshPublisherDesc(
+                            configName: '192.11.40.23', 
+                            sshCredentials: [
+                                encryptedPassphrase: '{AQADFGGTREW34UHJGT5438Wde4iaoCRU=}', 
+                                key: '', 
+                                keyPath: '', 
+                                username: 'root'
+                            ], 
+                            transfers: [
+                                sshTransfer(
+                                    cleanRemote: false, 
+                                    excludes: '', 
+                                    execCommand: '''ls
+                                                    cd aiotest_uc
+                                                    docker-compose -f docker-compose-worker.yml up -d --scale worker=3''', 
+                                    execTimeout: 300000, 
+                                    flatten: false, 
+                                    makeEmptyDirs: false, 
+                                    noDefaultExcludes: false, 
+                                    patternSeparator: '[, ]+', 
+                                    remoteDirectory: '', 
+                                    remoteDirectorySDF: false, 
+                                    removePrefix: '', 
+                                    sourceFiles: ''
+                                )
+                            ], 
+                            usePromotionTimestamp: false, 
+                            useWorkspaceInPromotion: false, 
+                            verbose: true
+                        ),
+                        sshPublisherDesc(
+                            configName: '192.11.40.24', 
+                            sshCredentials: [
+                                encryptedPassphrase: '{AQADFGGTREW34UHJGT5438Wde4iaoCRU=}', 
+                                key: '', 
+                                keyPath: '', 
+                                username: 'root'
+                            ], 
+                            transfers: [
+                                sshTransfer(
+                                    cleanRemote: false, 
+                                    excludes: '', 
+                                    execCommand: '''ls
+                                                    cd aiotest_uc
+                                                    docker-compose -f docker-compose-worker.yml up -d --scale worker=3''', 
+                                    execTimeout: 300000, 
+                                    flatten: false, 
+                                    makeEmptyDirs: false, 
+                                    noDefaultExcludes: false, 
+                                    patternSeparator: '[, ]+', 
+                                    remoteDirectory: '', 
+                                    remoteDirectorySDF: false, 
+                                    removePrefix: '', 
+                                    sourceFiles: ''
+                                )
+                            ], 
+                            usePromotionTimestamp: false, 
+                            useWorkspaceInPromotion: false, 
+                            verbose: true
+                        )
+                    ]
+                )
+            }
+        }
+    }
+}

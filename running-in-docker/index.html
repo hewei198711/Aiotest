@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link rel="shortcut icon" href="../img/favicon.ico" />
+    <title>Running in Docker - Aiotest</title>
+    <link rel="stylesheet" href="../css/theme.css" />
+    <link rel="stylesheet" href="../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+        <link href="../assets/_mkdocstrings.css" rel="stylesheet" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Running in Docker";
+        var mkdocs_page_input_path = "running-in-docker.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href=".." class="icon icon-home"> Aiotest
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../what-is-aiotest/">What is Aiotest</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../installation/">Installation</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../quickstart/">Your first test</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../writing-a-aiotestfile/">Writing a aiotestfile</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../command-line-options/">Command Line Options</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../running-distributed/">Distributed load test</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../seckill-semaphore-wait/">Seckill semaphore wait</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../running-in-command-line/">Running In Command Line</a>
+                </li>
+              </ul>
+              <ul class="current">
+                <li class="toctree-l1 current"><a class="reference internal current" href="./">Running in Docker</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#docker-image">Docker Image</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#docker-compose">Docker Compose</a>
+    </li>
+    </ul>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../custom-load-shape/">Custom load shapes</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../events-hooks/">Event hooks</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../prometheus-grafana/">Data Presentation</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../testing-other-systems/">Testing Other Systems</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../api/">Api</a>
+                </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="..">Aiotest</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href=".." class="icon icon-home" aria-label="Docs"></a> &raquo;</li>
+      <li class="breadcrumb-item active">Running in Docker</li>
+    <li class="wy-breadcrumbs-aside">
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h2 id="running-in-docker">Running in Docker</h2>
+<h3 id="docker-image">Docker Image</h3>
+<p>Use <a href="https://github.com/hewei198711/Aiotest/blob/main/Dockerfile">Dockerfile</a> to create an aiotest image(assuming that the <code>Dockerfile</code> exists in the current working directory)</p>
+<p>Dockerfile</p>
+<pre><code class="language-yml">FROM python:3.11-slim as base
+
+FROM base as builder
+RUN apt-get update &amp;&amp; apt-get install -y git 
+RUN python -m venv /opt/venv
+ENV PATH=&quot;/opt/venv/bin:$PATH&quot;
+COPY requirements.txt /build/requirements.txt
+RUN python3 -m pip install -U pip &amp;&amp; pip install -r /build/requirements.txt
+
+FROM base
+COPY --from=builder /opt/venv /opt/venv
+ENV PATH=&quot;/opt/venv/bin:$PATH&quot;
+# turn off python output buffering
+ENV PYTHONUNBUFFERED=1
+USER root
+WORKDIR /root/aiotest
+EXPOSE 8089 5557
+# ENTRYPOINT [&quot;aiotest&quot;]
+</code></pre>
+<pre><code class="language-console"># Notice the dot at the end
+docker build -t aiotest:v0.5.7 .
+</code></pre>
+<h3 id="docker-compose">Docker Compose</h3>
+<p>Here's an example Docker Compose file that could be used to start both a master node, and worker nodes</p>
+<p><strong>Distributed load test</strong></p>
+<pre><code class="language-yml"># docker-compose-master.yml
+version: '3'
+
+services:
+  master:
+    image: aiotest:0.5.7
+    ports:
+     - &quot;8089:8089&quot;
+     - &quot;5557:5557&quot;
+    volumes:
+      - ./:/root/aiotest
+    command: aiotest -f aiotestfile.py --master --expect-workers 8 -d -u 8000 -r 400 -t 1800
+</code></pre>
+<pre><code class="language-yml"># docker-compose-worker.yml
+version: '3'
+
+services:
+  worker:
+    image: aiotest:0.5.7
+    volumes:
+      - ./:/root/aiotest
+    command: aiotest -f aiotestfile.py --worker --master-host &quot;192.168.0.10&quot;
+</code></pre>
+<pre><code class="language-console"># linux host:port 192.168.0.10:22, CPU:4
+# Start master node
+docker-compose -f docker-compose-master.yml up -d
+</code></pre>
+<pre><code class="language-console"># linux host:port 192.168.0.11:22, CPU:4
+# Start four worker node
+docker-compose -f docker-compose-worker.yml up -d --scale worker=4
+</code></pre>
+<pre><code class="language-console"># linux host:port 192.168.0.12:22, CPU:4
+# Start four worker node
+docker-compose -f docker-compose-worker.yml up -d --scale worker=4
+</code></pre>
+<p><strong>Stand-alone load test</strong></p>
+<pre><code class="language-yml"># docker-compose-local.yml
+version: '3'
+
+services:
+  local:
+    image: aiotest:0.5.7
+    ports:
+     - &quot;8089:8089&quot;
+     - &quot;5557:5557&quot;
+    volumes:
+      - ./:/root/aiotest
+    command: aiotest -f aiotestfile.py -d -u 100 -r 10 -t 1800
+</code></pre>
+<pre><code class="language-console"># linux host:port 192.168.0.12:22, CPU:4
+# Start local node
+docker-compose -f docker-compose-local.yml up
+</code></pre>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../running-in-command-line/" class="btn btn-neutral float-left" title="Running In Command Line"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../custom-load-shape/" class="btn btn-neutral float-right" title="Custom load shapes">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+    
+      <span><a href="../running-in-command-line/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../custom-load-shape/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "..";</script>
+    <script src="../js/theme_extra.js"></script>
+    <script src="../js/theme.js"></script>
+      <script src="../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

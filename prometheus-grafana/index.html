@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link rel="shortcut icon" href="../img/favicon.ico" />
+    <title>Data Presentation - Aiotest</title>
+    <link rel="stylesheet" href="../css/theme.css" />
+    <link rel="stylesheet" href="../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+        <link href="../assets/_mkdocstrings.css" rel="stylesheet" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Data Presentation";
+        var mkdocs_page_input_path = "prometheus-grafana.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href=".." class="icon icon-home"> Aiotest
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../what-is-aiotest/">What is Aiotest</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../installation/">Installation</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../quickstart/">Your first test</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../writing-a-aiotestfile/">Writing a aiotestfile</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../command-line-options/">Command Line Options</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../running-distributed/">Distributed load test</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../seckill-semaphore-wait/">Seckill semaphore wait</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../running-in-command-line/">Running In Command Line</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../running-in-docker/">Running in Docker</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../custom-load-shape/">Custom load shapes</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../events-hooks/">Event hooks</a>
+                </li>
+              </ul>
+              <ul class="current">
+                <li class="toctree-l1 current"><a class="reference internal current" href="./">Data Presentation</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#docker-deploys-jenkinsprometheusgrafanaredisaiotestnode-exporter-services">Docker deploys jenkins,prometheus,grafana,redis,aiotest,node-exporter services</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#the-other-hosts-progressively-start-the-node-exporter-service-and-build-aiotest-images">The other hosts progressively start the node-exporter service, and build Aiotest images</a>
+    </li>
+    </ul>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../testing-other-systems/">Testing Other Systems</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../api/">Api</a>
+                </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="..">Aiotest</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href=".." class="icon icon-home" aria-label="Docs"></a> &raquo;</li>
+      <li class="breadcrumb-item active">Data Presentation</li>
+    <li class="wy-breadcrumbs-aside">
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h2 id="prometheus-and-grafana-data-presentation">Prometheus And Grafana Data Presentation</h2>
+<p>Use <code>prometheus</code> to collect aiotest test data. The default <code>stats_exporter</code> port is <code>8089</code>, which can be reset on the command line</p>
+<pre><code class="language-console">aiotest -f aiotestfile -p 8000
+</code></pre>
+<h3 id="docker-deploys-jenkinsprometheusgrafanaredisaiotestnode-exporter-services"><strong>Docker deploys jenkins,prometheus,grafana,redis,aiotest,node-exporter services</strong></h3>
+<p>Five hosts, root account, all files are in the same directory
+<img alt="192.168.0.10" src="../images/linux.png" /></p>
+<pre><code class="language-console"># linux host:port 192.168.0.10:22, CPU:4
+docker-compose -f docker-compose.yml up -d
+</code></pre>
+<p><strong>docker-compose.yml</strong></p>
+<pre><code class="language-yml">version: '3'
+services:
+  jenkins:
+    image: jenkins/jenkins
+    container_name: jenkins
+    user: root
+    restart: unless-stopped
+    ports:
+      - 8080:8080
+      - 50000:50000
+    volumes:
+      - $PWD/jenkins_data:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /root/.ssh:/root/.ssh
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    user: root
+    restart: unless-stopped
+    ports:
+    - 9090:9090
+    command:
+    - --config.file=/etc/prometheus/prometheus.yml
+    volumes:
+    - $PWD/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+
+  grafana:
+    image: grafana/grafana-enterprise
+    container_name: grafana
+    user: root
+    restart: unless-stopped
+    ports:
+    - 3000:3000
+    command:
+    - --config.file=/etc/prometheus/prometheus.yml
+    volumes:
+    - $PWD/grafana_data:/var/lib/grafana
+    depends_on:
+    - prometheus
+
+  redis:
+    image: redis/redis-stack:latest
+    container_name: redis
+    user: root
+    restart: unless-stopped
+    volumes:
+    - $PWD/redis_data/:/data
+    - $PWD/local-redis-stack.conf:/redis-stack.conf
+    ports:
+    - 6379:6379
+
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: node-exporter
+    user: root
+    restart: unless-stopped
+    volumes:
+    - /proc:/host/proc:ro
+    - /sys:/host/sys:ro
+    - /:/rootfs:ro
+    command:
+    - '--path.procfs=/host/proc'
+    - '--path.rootfs=/rootfs'
+    - '--path.sysfs=/host/sys'
+    - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    ports:
+    - 9100:9100
+
+  aiotest:
+    image: aiotest:latest
+    build: .
+
+</code></pre>
+<p><strong>prometheus.yml</strong></p>
+<pre><code class="language-yml">global:
+  scrape_interval: 1m
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: [&quot;localhost:9090&quot;]
+
+  # Collect resource usage and performance data of test hosts
+  - job_name: &quot;192.168.0.10&quot;
+    static_configs:
+      - targets: [&quot;192.168.0.10:9100&quot;]
+  - job_name: &quot;192.168.0.11&quot;
+    static_configs:
+      - targets: [&quot;192.168.0.11:9100&quot;]
+  - job_name: &quot;192.168.0.12&quot;
+    static_configs:
+      - targets: [&quot;192.168.0.12:9100&quot;]
+  - job_name: &quot;192.168.0.13&quot;
+    static_configs:
+      - targets: [&quot;192.168.0.13:9100&quot;]
+  - job_name: &quot;192.168.0.14&quot;
+    static_configs:
+      - targets: [&quot;192.168.0.14:9100&quot;]
+
+  # Collect aiotest load test data
+  - job_name: aiotest
+    scrape_interval: 5s
+    static_configs:
+      - targets: [&quot;192.168.0.10:8089&quot;]
+        labels:
+          instance: aiotest
+</code></pre>
+<p><strong>local-redis-stack.conf</strong></p>
+<pre><code class="language-conf"># Set a password
+requirepass 123456
+</code></pre>
+<p><strong>Dockerfile</strong></p>
+<pre><code class="language-Dockerfile">FROM python:3.11-slim as base
+
+FROM base as builder
+RUN apt-get update &amp;&amp; apt-get install -y git 
+RUN python -m venv /opt/venv
+ENV PATH=&quot;/opt/venv/bin:$PATH&quot;
+COPY requirements.txt /build/requirements.txt
+RUN python3 -m pip install -U pip &amp;&amp; pip install -r /build/requirements.txt
+
+FROM base
+COPY --from=builder /opt/venv /opt/venv
+ENV PATH=&quot;/opt/venv/bin:$PATH&quot;
+# turn off python output buffering
+ENV PYTHONUNBUFFERED=1
+USER root
+WORKDIR /root/aiotest
+EXPOSE 8089 5557
+</code></pre>
+<h3 id="the-other-hosts-progressively-start-the-node-exporter-service-and-build-aiotest-images">The other hosts progressively start the node-exporter service, and build Aiotest images</h3>
+<pre><code class="language-console"># 192.168.0.11
+# 192.168.0.12
+# 192.168.0.13
+# 192.168.0.14
+docker-compose -f docker-compose.yml up -d
+</code></pre>
+<p><strong>docker-compose.yml</strong></p>
+<pre><code class="language-yml">version: '3'
+services: 
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: node-exporter
+    user: root
+    restart: unless-stopped
+    volumes:
+    - /proc:/host/proc:ro
+    - /sys:/host/sys:ro
+    - /:/rootfs:ro
+    command:
+    - '--path.procfs=/host/proc'
+    - '--path.rootfs=/rootfs'
+    - '--path.sysfs=/host/sys'
+    - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    ports:
+    - 9100:9100
+
+  aiotest:
+    image: aiotest:latest
+    build: .
+</code></pre>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../events-hooks/" class="btn btn-neutral float-left" title="Event hooks"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../testing-other-systems/" class="btn btn-neutral float-right" title="Testing Other Systems">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+    
+      <span><a href="../events-hooks/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../testing-other-systems/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "..";</script>
+    <script src="../js/theme_extra.js"></script>
+    <script src="../js/theme.js"></script>
+      <script src="../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

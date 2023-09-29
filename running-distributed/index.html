@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link rel="shortcut icon" href="../img/favicon.ico" />
+    <title>Distributed load test - Aiotest</title>
+    <link rel="stylesheet" href="../css/theme.css" />
+    <link rel="stylesheet" href="../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+        <link href="../assets/_mkdocstrings.css" rel="stylesheet" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Distributed load test";
+        var mkdocs_page_input_path = "running-distributed.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href=".." class="icon icon-home"> Aiotest
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../what-is-aiotest/">What is Aiotest</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../installation/">Installation</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../quickstart/">Your first test</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../writing-a-aiotestfile/">Writing a aiotestfile</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../command-line-options/">Command Line Options</a>
+                </li>
+              </ul>
+              <ul class="current">
+                <li class="toctree-l1 current"><a class="reference internal current" href="./">Distributed load test</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#example">Example</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#options">Options</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#communicating-across-nodes">Communicating across nodes</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#running-distributed-with-docker">Running distributed with Docker</a>
+    </li>
+    </ul>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../seckill-semaphore-wait/">Seckill semaphore wait</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../running-in-command-line/">Running In Command Line</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../running-in-docker/">Running in Docker</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../custom-load-shape/">Custom load shapes</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../events-hooks/">Event hooks</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../prometheus-grafana/">Data Presentation</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../testing-other-systems/">Testing Other Systems</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../api/">Api</a>
+                </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="..">Aiotest</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href=".." class="icon icon-home" aria-label="Docs"></a> &raquo;</li>
+      <li class="breadcrumb-item active">Distributed load test</li>
+    <li class="wy-breadcrumbs-aside">
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h2 id="distributed-load-test">Distributed load test</h2>
+<p>A single process running Aiotest can simulate a reasonably high throughput. For a simple test plan it should be able to make many thousands of requests per second.</p>
+<p>But if you want to run even more load, you'll need to scale out to multiple processes, maybe even multiple machines.</p>
+<p>To do this, you start one instance of Aiotest in master mode using the <code>--master</code> flag and multiple worker instances using the <code>--worker</code> flag. If the workers are not on the same machine as the master you use <code>--master-host</code>, <code>--master-port</code> to point them to the IP/hostname and port of the machine running the master.</p>
+<p>The master instancetells the workers when to start/stop Users.   The workers run your Users and send back statistics to the master.   The master instance doesn't run any Users itself.</p>
+<p>Both the master and worker machines must have a copy of the aiotestfile when running Aiotest distributed.</p>
+<blockquote>
+<p><strong>Note</strong>
+Because Python cannot fully utilize more than one core per process (see <a href="https://realpython.com/python-gil/">GIL</a>, you should typically run <strong>one worker instance per processor core</strong> on the worker machines in order to utilize all their computing power.</p>
+</blockquote>
+<h3 id="example">Example</h3>
+<p>To start aiotest in master mode:</p>
+<pre><code class="language-console"># linux host:port 192.168.0.10:22 CPU:4
+aiotest -f aiotestfile.py --master --expect-workers 8
+</code></pre>
+<p>And then on each worker (replace <code>192.168.0.10</code> with the IP of the master machine, or leave out the parameter altogether if your workers are on the same machine as the master)</p>
+<pre><code class="language-console"># linux host:port 192.168.0.11:22, CPU:4
+aiotest -f aiotestfile.py --worker --master-host &quot;192.168.0.10&quot;
+aiotest -f aiotestfile.py --worker --master-host &quot;192.168.0.10&quot;
+aiotest -f aiotestfile.py --worker --master-host &quot;192.168.0.10&quot;
+aiotest -f aiotestfile.py --worker --master-host &quot;192.168.0.10&quot;
+
+# linux host:port 192.168.0.12:22, CPU:4
+aiotest -f aiotestfile.py --worker --master-host &quot;192.168.0.10&quot;
+aiotest -f aiotestfile.py --worker --master-host &quot;192.168.0.10&quot;
+aiotest -f aiotestfile.py --worker --master-host &quot;192.168.0.10&quot;
+aiotest -f aiotestfile.py --worker --master-host &quot;192.168.0.10&quot;
+</code></pre>
+<h3 id="options">Options</h3>
+<p><strong><code>--master</code></strong></p>
+<p>Sets aiotest in master mode.</p>
+<p><strong><code>--worker</code></strong></p>
+<p>Sets aiotest in worker mode.</p>
+<p><strong><code>--master-host=X.X.X.X</code></strong></p>
+<p>Optionally used together with <code>--worker</code> to set the hostname/IP of the master node (defaults
+to 127.0.0.1)</p>
+<p><strong><code>--master-port=5557</code></strong></p>
+<p>Optionally used together with <code>--worker</code> to set the port number of the master node (defaults to 5557).</p>
+<p><strong><code>--master-bind-host=X.X.X.X</code></strong></p>
+<p>Optionally used together with <code>--master</code>. Determines which network interface the master node
+will bind to. Defaults to * (all available interfaces).</p>
+<p><strong><code>--master-bind-port=5557</code></strong></p>
+<p>Optionally used together with <code>--master</code>. Determines what network ports that the master node will
+listen to. Defaults to 5557.</p>
+<p><strong><code>--expect-workers=X</code></strong></p>
+<p>Optionally used together with <code>--master</code>. The master node will then wait until X worker
+nodes has connected before the test is started.</p>
+<h3 id="communicating-across-nodes">Communicating across nodes</h3>
+<p>In distributed mode, it is recommended to store data in middleware <code>redis</code>, and each worker node pulls data from <code>redis</code> (for example, pull login account and login password).</p>
+<pre><code class="language-python">from redis import StrictRedis
+from aiotest import AsyncHttpUser
+
+db = StrictRedis(
+    host=&quot;192.168.0.10&quot;, 
+    port=&quot;6379&quot;, 
+    db=0, 
+    decode_responses=True, 
+    password=&quot;123456&quot;
+)
+pipe = db.pipeline() 
+
+class TestUserShoppingTrolley(AsyncHttpUser):
+    db = db
+    async def on_start(self):
+        url = &quot;/login&quot;
+        username, password = self.db.lpop(&quot;userdata&quot;)
+        data = {&quot;username&quot;: username, &quot;password&quot;: password}
+        async with self.session.post(url=url, data=data) as resp:
+            ...
+</code></pre>
+<h3 id="running-distributed-with-docker">Running distributed with Docker</h3>
+<p>See <a href="../running-in-docker/">Docker</a></p>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../command-line-options/" class="btn btn-neutral float-left" title="Command Line Options"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../seckill-semaphore-wait/" class="btn btn-neutral float-right" title="Seckill semaphore wait">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+    
+      <span><a href="../command-line-options/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../seckill-semaphore-wait/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "..";</script>
+    <script src="../js/theme_extra.js"></script>
+    <script src="../js/theme.js"></script>
+      <script src="../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

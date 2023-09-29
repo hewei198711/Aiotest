@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link rel="shortcut icon" href="../img/favicon.ico" />
+    <title>Command Line Options - Aiotest</title>
+    <link rel="stylesheet" href="../css/theme.css" />
+    <link rel="stylesheet" href="../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+        <link href="../assets/_mkdocstrings.css" rel="stylesheet" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Command Line Options";
+        var mkdocs_page_input_path = "command-line-options.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href=".." class="icon icon-home"> Aiotest
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../what-is-aiotest/">What is Aiotest</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../installation/">Installation</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../quickstart/">Your first test</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../writing-a-aiotestfile/">Writing a aiotestfile</a>
+                </li>
+              </ul>
+              <ul class="current">
+                <li class="toctree-l1 current"><a class="reference internal current" href="./">Command Line Options</a>
+    <ul class="current">
+    </ul>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../running-distributed/">Distributed load test</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../seckill-semaphore-wait/">Seckill semaphore wait</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../running-in-command-line/">Running In Command Line</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../running-in-docker/">Running in Docker</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../custom-load-shape/">Custom load shapes</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../events-hooks/">Event hooks</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../prometheus-grafana/">Data Presentation</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../testing-other-systems/">Testing Other Systems</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../api/">Api</a>
+                </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="..">Aiotest</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href=".." class="icon icon-home" aria-label="Docs"></a> &raquo;</li>
+      <li class="breadcrumb-item active">Command Line Options</li>
+    <li class="wy-breadcrumbs-aside">
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h2 id="command-line-options">Command Line Options</h2>
+<p>Aiotest is configured mainly through command line arguments.</p>
+<pre><code class="language-console">aiotest --help
+
+usage: aiotest [options] [-h] [-f AIOTESTFILE] [-H HOST] [--master] [--worker] [--expect-workers EXPECT_WORKERS] [--master-host MASTER_HOST] [--master-port MASTER_PORT]
+                         [--master-bind-host MASTER_BIND_HOST] [--master-bind-port MASTER_BIND_PORT] [-u NUM_USERS] [-r RATE] [-t RUN_TIME] [--prometheus-port PROMETHEUS_PORT] [-b [BUCKETS ...]]
+                         [--loglevel LOGLEVEL] [--logfile LOGFILE] [--show-users-wight] [-V]
+
+asyncio is an easy to use, scriptable and scalable performance testing tool
+
+options:
+  -h, --help            show this help message and exit
+  -f AIOTESTFILE, --aiotestfile AIOTESTFILE
+                        Python module file to import, e.g. '../other.py'. Default: aiotestfile
+  -H HOST, --host HOST  Host to load test in the following format: http://10.21.32.33
+  --master              Set aiotest to run in distributed mode with this process as master
+  --worker              Set aiotest to run in distributed mode with this process as worker
+  --expect-workers EXPECT_WORKERS
+                        How many workers master should expect to connect before starting the test
+  --master-host MASTER_HOST
+                        Host or IP address of aiotest master for distributed load testing. Only used when running with --worker. Defaults to 127.0.0.1.
+  --master-port MASTER_PORT
+                        The port to connect to that is used by the aiotest master for distributed load testing. Only used when running with --worker. Defaults to 5557. Note that workers will also connect
+                        to the master node on this port + 1.
+  --master-bind-host MASTER_BIND_HOST
+                        Interfaces (hostname, ip) that aiotest master should bind to. Only used when running with --master. Defaults to * (all available interfaces).
+  --master-bind-port MASTER_BIND_PORT
+                        Port that worker master should bind to. Only used when running with --master. Defaults to 5557. Note that aiotest will also use this port + 1, so by default the master node will
+                        bind to 5557 and 5558.
+  -u NUM_USERS, --users NUM_USERS
+                        Number of concurrent users
+  -r RATE, --rate RATE  The rate per second in which users are started/stoped
+  -t RUN_TIME, --run-time RUN_TIME
+                        Stop after the specified amount of time, e.g. (300s, 20m, 3h, 1h30m, etc.). Only used together with --no-web
+  --prometheus-port PROMETHEUS_PORT
+                        Port that metrics are exposed over HTTP, to be read by the Prometheus server.
+  -b [BUCKETS ...], --buckets [BUCKETS ...]
+                        Prometheus histogram buckets
+  --loglevel LOGLEVEL, -L LOGLEVEL
+                        Choose between DEBUG/INFO/WARNING/ERROR/CRITICAL. Default is INFO.
+  --logfile LOGFILE     Path to log file. If not set, log will go to stdout/stderr
+  --show-users-wight    print json data of the users classes' execution wight
+  -V, --version         show program's version number and exit
+</code></pre>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../writing-a-aiotestfile/" class="btn btn-neutral float-left" title="Writing a aiotestfile"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../running-distributed/" class="btn btn-neutral float-right" title="Distributed load test">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+    
+      <span><a href="../writing-a-aiotestfile/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../running-distributed/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "..";</script>
+    <script src="../js/theme_extra.js"></script>
+    <script src="../js/theme.js"></script>
+      <script src="../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

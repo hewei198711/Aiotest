@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link rel="shortcut icon" href="../img/favicon.ico" />
+    <title>Writing a aiotestfile - Aiotest</title>
+    <link rel="stylesheet" href="../css/theme.css" />
+    <link rel="stylesheet" href="../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+        <link href="../assets/_mkdocstrings.css" rel="stylesheet" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Writing a aiotestfile";
+        var mkdocs_page_input_path = "writing-a-aiotestfile.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href=".." class="icon icon-home"> Aiotest
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../what-is-aiotest/">What is Aiotest</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../installation/">Installation</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../quickstart/">Your first test</a>
+                </li>
+              </ul>
+              <ul class="current">
+                <li class="toctree-l1 current"><a class="reference internal current" href="./">Writing a aiotestfile</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#user">User</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#wait_time">wait_time</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#host">host</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#weight">weight</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#session">session</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#on_start-and-on_stop">on_start() and on_stop()</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#job">Job</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#name">name</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#success-failureexc">success() failure(exc)</a>
+    </li>
+        </ul>
+    </li>
+    </ul>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../command-line-options/">Command Line Options</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../running-distributed/">Distributed load test</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../seckill-semaphore-wait/">Seckill semaphore wait</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../running-in-command-line/">Running In Command Line</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../running-in-docker/">Running in Docker</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../custom-load-shape/">Custom load shapes</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../events-hooks/">Event hooks</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../prometheus-grafana/">Data Presentation</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../testing-other-systems/">Testing Other Systems</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../api/">Api</a>
+                </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="..">Aiotest</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href=".." class="icon icon-home" aria-label="Docs"></a> &raquo;</li>
+      <li class="breadcrumb-item active">Writing a aiotestfile</li>
+    <li class="wy-breadcrumbs-aside">
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h2 id="writing-a-aiotestfile">Writing a aiotestfile</h2>
+<p>Now, lets look at a more complete/realistic example of what your tests might look like:</p>
+<pre><code class="language-python">from aiotest import AsyncHttpUser, LoadUserShape, logger
+
+class TestUserShoppingTrolley(AsyncHttpUser):
+    &quot;&quot;&quot;
+    Get the shopping cart and submit the order
+    &quot;&quot;&quot;
+    weight = 1
+    wait_time = 1
+    host = &quot;https://taobao.com&quot;
+    token = None
+    orderid = None
+
+    async def on_start(self):
+        url = &quot;/login&quot;
+        data = {&quot;username&quot;: &quot;admin&quot;, &quot;password&quot;: &quot;123456&quot;}
+        async with self.session.post(url=url, data=data) as resp:
+            data = await resp.json()
+            self.token = data[&quot;token&quot;]
+
+    async def test_get_shopping_trolley(self):
+        url = &quot;/GetShoppingTrolley&quot;
+        hearders = {&quot;Authorization&quot;: self.token}
+        async with self.session.get(url=url, hearders=hearders) as resp:
+            data = await resp.json()      
+
+    async def order_commit_test(self):
+        url = &quot;/orderCommit&quot;
+        hearders = {&quot;Authorization&quot;: self.token}
+        data = {&quot;orderAmount&quot;: 100, &quot;coupon&quot;: 30}
+        async with self.session.post(url=url, json=data, hearders=hearders) as resp:
+            data = await resp.json()
+            self.orderid = data[&quot;order&quot;][&quot;Orderid&quot;]
+
+    async def test_pay(self):
+        url = &quot;/Pay&quot;
+        hearders = {&quot;Authorization&quot;: self.token}
+        data = {&quot;id&quot;: self.orderid}
+        async with self.session.post(url=url, json=data, headers=self.headers, name=&quot;My Pay&quot;) as resp:    
+            data = await resp.json()
+
+
+class UserOrderCommitTest(AsyncHttpUser):
+    &quot;&quot;&quot;
+    Direct order submission
+    &quot;&quot;&quot;
+    weight = 4
+    wait_time = 1
+    host = &quot;https://taobao.com&quot;
+    token = None
+    orderid = None
+
+    async def on_start(self):
+        url = &quot;/login&quot;
+        data = {&quot;username&quot;: &quot;admin&quot;, &quot;password&quot;: &quot;123456&quot;}
+        async with self.session.post(url=url, data=data) as resp:
+            data = await resp.json()
+            self.token = data[&quot;token&quot;]
+
+    async def order_commit_test(self):
+        url = &quot;/orderCommit&quot;
+        hearders = {&quot;Authorization&quot;: self.token}
+        data = {&quot;orderAmount&quot;: 100, &quot;coupon&quot;: 30}
+        async with self.session.post(url=url, json=data, hearders=hearders) as resp:
+            data = await resp.json()
+            self.orderid = data[&quot;order&quot;][&quot;Orderid&quot;]
+
+    async def test_pay(self):
+        url = &quot;/Pay&quot;
+        hearders = {&quot;Authorization&quot;: self.token}
+        data = {&quot;id&quot;: self.orderid} 
+        async with self.session.post(url=url, json=data, headers=self.headers, name=&quot;My Pay&quot;) as resp:    
+            data = await resp.json()
+</code></pre>
+<p><strong>Let’s break it down</strong></p>
+<pre><code class="language-python">from aiotest import AsyncHttpUser, LoadUserShape, logger
+</code></pre>
+<p>A aiotest file is just a normal Python module, it can import code from other files or packages.</p>
+<h3 id="user"><strong>User</strong></h3>
+<pre><code class="language-python">class TestUserShoppingTrolley(AsyncHttpUser):
+    ...
+
+class UserOrderCommitTest(AsyncHttpUser):
+    ...
+</code></pre>
+<p>Here we define a class for the users that we will be simulating(The class must startswith or endswith <code>Test</code>, otherwise aiotest will ignore the class). It inherits from <a href="../api/#AsyncHttpUser">AsyncHttpUser</a> which gives each user a <code>session</code> attribute, which is an instance of <a href="../api/#ClientSession">ClientSession</a>, that can be used to make HTTP requests to the target system that we want to load test. When a test starts, aiotest will create an instance of this class for every user that it simulates, and each of these users will start running within their own <a href="https://docs.python.org/zh-cn/3/library/asyncio-task.html">asyncio.Task</a>.</p>
+<p>For a file to be a valid aiotestfile it must contain at least one class inheriting from <a href="../api/#User">User</a></p>
+<h4 id="wait_time"><strong>wait_time</strong></h4>
+<pre><code class="language-python">wait_time = 1
+</code></pre>
+<p>Our class defines a <code>wait_time</code> that will make the simulated users wait 1 seconds after each api coroutine.</p>
+<h4 id="host"><strong>host</strong></h4>
+<pre><code class="language-python">host = &quot;https://taobao.com&quot;
+</code></pre>
+<p>The host attribute is a URL prefix to the host that is to be loaded.
+Usually, this is specified on the command line, using the<code>--host</code> option, when aiotest is started.</p>
+<p>If the command line specifies the <code>--host</code> attribute, it replaces the <code>host</code> attribute set in the user class</p>
+<h4 id="weight"><strong>weight</strong></h4>
+<pre><code class="language-python">class TestUserShoppingTrolley(AsyncHttpUser):
+    weight=1
+    ...
+class UserOrderCommitTest(AsyncHttpUser):
+    weight=4
+    ...
+</code></pre>
+<p>We use the weight attribute to set different weights for the user class and flexibly set different load test scenarios. eg:The number of instances of the <code>UserOrderCommitTest</code> class would be four times that of the <code>TestUserShoppingTrolley</code> class. If we were to simulate 100 customers, So the <code>UserOrderCommitTest</code> class will instantiate 80 and the <code>TestUserShoppingTrolley</code> class will instantiate 20</p>
+<h4 id="session"><strong>session</strong></h4>
+<pre><code class="language-python">async with self.session.post(url=url, json=data, hearders=hearders) as resp:
+    ...
+</code></pre>
+<p>The property <code>self.session</code> is an instance of the <a href="../api/#ClientSession">ClientSession</a> class that makes it possible to make HTTP requests that will be logged by aiotest.<a href="https://docs.aiohttp.org/en/stable/client_quickstart.html">see more</a></p>
+<h4 id="on_start-and-on_stop"><strong>on_start() and on_stop()</strong></h4>
+<pre><code class="language-python">async def on_start(self):
+    url = &quot;/login&quot;
+    data = {&quot;username&quot;: &quot;admin&quot;, &quot;password&quot;: &quot;123456&quot;}
+    async with self.session.post(url=url, data=data) as resp:
+        data = await resp.json()
+        self.token = data[&quot;token&quot;]
+
+async def on_stop(self):
+    super().on_stop()
+
+</code></pre>
+<p>When the <code>user</code> starts the operation, the <a href="../api/#ClientSession">on_start</a> method will be called first, and the <a href="../api/#ClientSession">on_stop</a> method will be called only once at the end. The <code>on_start</code> method is basically used for <code>login</code> and obtaining the <code>token</code></p>
+<h3 id="job"><strong>Job</strong></h3>
+<pre><code class="language-python">async def test_get_shopping_trolley(self):
+    ...
+
+async def order_commit_test(self):
+    ...
+</code></pre>
+<p>Methods must startswith or endswith <code>test</code> ,otherwise aiotest will ignore the methods. For every running user,
+Aiotest creates a <code>asyncio.Task</code>, that will call those methods.</p>
+<h4 id="name"><strong>name</strong></h4>
+<pre><code class="language-python">async def test_pay(self):
+    ... 
+    async with self.session.post(url=url, name=&quot;My Pay&quot;) as resp:    
+        ...
+</code></pre>
+<p>When aiotest collects the status of each request (response_time, response_size, code), the request is named by <code>url</code> by default, and you can rename it by setting the parameter <code>name</code> in the request</p>
+<h4 id="success-failureexc"><strong>success() failure(exc)</strong></h4>
+<pre><code class="language-python">async def order_commit_test(self):
+    &quot;The use of assert is recommended&quot;
+    async with self.session.post(url=url) as resp:
+        data = await resp.json()
+        assert data[&quot;order&quot;][&quot;Orderid&quot;].startswith(&quot;2023&quot;)
+
+async def test_pay(self):
+    &quot;It is not recommended to display calls to the success,failure methods&quot;
+    async with self.session.post(url=url) as resp:
+        if resp.status &lt; 400:
+            resp.success()
+        else:
+            resp.failure(exc=&quot;An Error Occurred&quot;)
+</code></pre>
+<p>Use the <code>success</code> method to mark the request as a success, even if the response code is incorrect, and the <code>failure</code> method to mark the request as a failure, even if the response code is correct.</p>
+<p>When async with context exits, aiotest will automatically call the <code>Event.stats_request</code> and record the request information (request_name, request_method, response_time, response_length, error). It is not recommended to call the <code>success</code> and <code>failure</code> methods, it is recommended to use <code>assert</code> to raise an exception (see <a href="https://www.osgeo.cn/pytest/getting-started.html#assert-that-a-certain-exception-is-raised">pytest</a>)</p>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../quickstart/" class="btn btn-neutral float-left" title="Your first test"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../command-line-options/" class="btn btn-neutral float-right" title="Command Line Options">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+    
+      <span><a href="../quickstart/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../command-line-options/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "..";</script>
+    <script src="../js/theme_extra.js"></script>
+    <script src="../js/theme.js"></script>
+      <script src="../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

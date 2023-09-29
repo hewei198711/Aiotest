@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link rel="shortcut icon" href="../img/favicon.ico" />
+    <title>Custom load shapes - Aiotest</title>
+    <link rel="stylesheet" href="../css/theme.css" />
+    <link rel="stylesheet" href="../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+        <link href="../assets/_mkdocstrings.css" rel="stylesheet" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Custom load shapes";
+        var mkdocs_page_input_path = "custom-load-shape.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href=".." class="icon icon-home"> Aiotest
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../what-is-aiotest/">What is Aiotest</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../installation/">Installation</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../quickstart/">Your first test</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../writing-a-aiotestfile/">Writing a aiotestfile</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../command-line-options/">Command Line Options</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../running-distributed/">Distributed load test</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../seckill-semaphore-wait/">Seckill semaphore wait</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../running-in-command-line/">Running In Command Line</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../running-in-docker/">Running in Docker</a>
+                </li>
+              </ul>
+              <ul class="current">
+                <li class="toctree-l1 current"><a class="reference internal current" href="./">Custom load shapes</a>
+    <ul class="current">
+    </ul>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../events-hooks/">Event hooks</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../prometheus-grafana/">Data Presentation</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../testing-other-systems/">Testing Other Systems</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../api/">Api</a>
+                </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="..">Aiotest</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href=".." class="icon icon-home" aria-label="Docs"></a> &raquo;</li>
+      <li class="breadcrumb-item active">Custom load shapes</li>
+    <li class="wy-breadcrumbs-aside">
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h2 id="custom-load-shapes">Custom load shapes</h2>
+<p>Sometimes a completely custom shaped load test is required that cannot be achieved by simply setting or changing the user count and spawn rate. For example, you might want to generate a load spike or ramp up and down at custom times. By using a <a href="../api/#LoadUserShape">LoadUserShape</a> class you have full control over the user count and spawn rate at all times.</p>
+<p>Define a class inheriting the LoadUserShape class in your aiotest file. If this type of class is found then it will be automatically used by Aiotest.</p>
+<p>In this class you define a <code>tick()</code> method that returns a tuple with the desired user count and spawn rate (or <code>None</code> to stop the test). Aiotest will call the <code>tick()</code> method approximately once per second.</p>
+<p>In the class you also have access to the <code>get_run_time()</code> method, for checking how long the test has run for.</p>
+<p><strong>Example</strong></p>
+<pre><code class="language-python">from aiotest import AsyncHttpUser, LoadUserShape, logger
+
+class TestUserShoppingTrolley(AsyncHttpUser):
+    &quot;&quot;&quot;
+    Get the shopping cart and submit the order
+    &quot;&quot;&quot;
+    weight = 1
+    wait_time = 1
+    host = &quot;https://taobao.com&quot;
+    token = None
+    orderid = None
+
+    async def on_start(self):
+        url = &quot;/login&quot;
+        data = {&quot;username&quot;: &quot;admin&quot;, &quot;password&quot;: &quot;123456&quot;}
+        async with self.session.post(url=url, data=data) as resp:
+            data = await resp.json()
+            self.token = data[&quot;token&quot;]
+
+    async def test_get_shopping_trolley(self):
+        url = &quot;/GetShoppingTrolley&quot;
+        hearders = {&quot;Authorization&quot;: self.token}
+        async with self.session.get(url=url, hearders=hearders) as resp:
+            data = await resp.json()      
+
+    async def order_commit_test(self):
+        url = &quot;/orderCommit&quot;
+        hearders = {&quot;Authorization&quot;: self.token}
+        data = {&quot;orderAmount&quot;: 100, &quot;coupon&quot;: 30}
+        async with self.session.post(url=url, json=data, hearders=hearders) as resp:
+            data = await resp.json()
+            self.orderid = data[&quot;order&quot;][&quot;Orderid&quot;]
+
+
+class TestShape(LoadUserShape):
+    stages = [
+        {&quot;duration&quot;: 180, &quot;user_count&quot;: 30, &quot;rate&quot;: 30},
+        {&quot;duration&quot;: 360, &quot;user_count&quot;: 60, &quot;rate&quot;: 30},
+        {&quot;duration&quot;: 540, &quot;user_count&quot;: 120, &quot;rate&quot;: 30},
+        {&quot;duration&quot;: 720, &quot;user_count&quot;: 60, &quot;rate&quot;: 30},
+        {&quot;duration&quot;: 900, &quot;user_count&quot;: 30, &quot;rate&quot;: 30},
+    ]
+
+    def tick(self):
+        run_time = self.get_run_time()
+
+        for stage in self.stages:
+            if run_time &lt; stage[&quot;duration&quot;]:
+                tick_data = (stage[&quot;user_count&quot;], stage[&quot;rate&quot;])
+                return tick_data
+
+        return None
+</code></pre>
+<p><strong>Note</strong> The subclass of <code>LoadUserShape</code> must startswith or endswith <code>Test</code>. aiotestfile contains the <code>LoadUserShape</code> subclass, which ignores arguments specified on the command line :<code>-u</code>, <code>-r</code>, <code>-t</code>.</p>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../running-in-docker/" class="btn btn-neutral float-left" title="Running in Docker"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../events-hooks/" class="btn btn-neutral float-right" title="Event hooks">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+    
+      <span><a href="../running-in-docker/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../events-hooks/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "..";</script>
+    <script src="../js/theme_extra.js"></script>
+    <script src="../js/theme.js"></script>
+      <script src="../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

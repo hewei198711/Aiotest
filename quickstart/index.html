@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link rel="shortcut icon" href="../img/favicon.ico" />
+    <title>Your first test - Aiotest</title>
+    <link rel="stylesheet" href="../css/theme.css" />
+    <link rel="stylesheet" href="../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+        <link href="../assets/_mkdocstrings.css" rel="stylesheet" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Your first test";
+        var mkdocs_page_input_path = "quickstart.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href=".." class="icon icon-home"> Aiotest
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../what-is-aiotest/">What is Aiotest</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../installation/">Installation</a>
+                </li>
+              </ul>
+              <ul class="current">
+                <li class="toctree-l1 current"><a class="reference internal current" href="./">Your first test</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#aiotests-prometheus-interface">Aiotest’s prometheus interface</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#aiotests-grafana-interface">Aiotest’s grafana interface</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#more-options">More options</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#next-steps">Next steps</a>
+    </li>
+    </ul>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../writing-a-aiotestfile/">Writing a aiotestfile</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../command-line-options/">Command Line Options</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../running-distributed/">Distributed load test</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../seckill-semaphore-wait/">Seckill semaphore wait</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../running-in-command-line/">Running In Command Line</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../running-in-docker/">Running in Docker</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../custom-load-shape/">Custom load shapes</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../events-hooks/">Event hooks</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../prometheus-grafana/">Data Presentation</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../testing-other-systems/">Testing Other Systems</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../api/">Api</a>
+                </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="..">Aiotest</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href=".." class="icon icon-home" aria-label="Docs"></a> &raquo;</li>
+      <li class="breadcrumb-item active">Your first test</li>
+    <li class="wy-breadcrumbs-aside">
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h2 id="your-first-test">Your first test</h2>
+<p>A Aiotest test is essentially just a Python program making requests to the system you want to test.  This makes it very flexible and particularly good at implementing complex user flows.  But it can do simple tests as well, so let’s start with that:</p>
+<pre><code class="language-python">from aiotest import AsyncHttpUser, LoadUserShape, logger
+
+class TestUser(AsyncHttpUser):
+    host = &quot;https://uat.taobao.com&quot;
+    token = None
+
+    async def on_start(self):
+        url = &quot;/login&quot;
+        data = {&quot;username&quot;: &quot;admin&quot;, &quot;password&quot;: &quot;123456&quot;}
+        async with self.session.post(url=url, data=data) as resp:
+            data = await resp.json()
+            self.token = data[&quot;token&quot;]
+
+    async def test_search(self):
+        url = &quot;/search&quot;
+        hearders = {&quot;Authorization&quot;: self.token}
+        data = {&quot;keyword&quot;: &quot;F22&quot;}
+        async with self.session.post(url=url, hearders=hearders, json=data) as resp:
+            data = await resp.json()      
+
+    async def test_personal_info(self):
+        url = &quot;/personalInfo&quot;
+        async with self.session.get(url=url, hearders=hearders) as resp:
+            data = await resp.json()
+
+</code></pre>
+<p>This user will make HTTP requests to <code>/search</code>, and then <code>/personalInfo</code>, again and again. For a full explanation and a more realistic example see Writing a <a href="../writing-a-aiotestfile/">aiotestfile</a>.</p>
+<p>Change <code>/search</code> and <code>/personalInfo</code> to some actual paths on the web site/service you want to test, put the code in a file named <code>aiotestfile.py</code> in your current directory and then run <code>aiotest</code>:</p>
+<pre><code class="language-console">$ aiotst -f aiotestfile.py
+2023-09-26 11:19:35.337 | INFO     | aiotest.runners:start_users:130 - starting 1 users at the rate 1 users/s, (0 users already running)...
+2023-09-26 11:19:36.313 | INFO     | aiotest.runners:start_users:147 - All users started: TestVipUser:1
+2023-09-26 11:19:39.739 | INFO     | aiotest.runners:stop_users:167 - Stopping 1 users immediately
+</code></pre>
+<h3 id="aiotests-prometheus-interface">Aiotest’s prometheus interface</h3>
+<p>open http://localhost:8089</p>
+<pre><code class="language-console"># HELP python_gc_objects_collected_total Objects collected during gc
+# TYPE python_gc_objects_collected_total counter
+python_gc_objects_collected_total{generation=&quot;0&quot;} 1064.0
+python_gc_objects_collected_total{generation=&quot;1&quot;} 542.0
+python_gc_objects_collected_total{generation=&quot;2&quot;} 0.0
+# HELP python_gc_objects_uncollectable_total Uncollectable objects found during GC
+# TYPE python_gc_objects_uncollectable_total counter
+python_gc_objects_uncollectable_total{generation=&quot;0&quot;} 0.0
+python_gc_objects_uncollectable_total{generation=&quot;1&quot;} 0.0
+python_gc_objects_uncollectable_total{generation=&quot;2&quot;} 0.0
+# HELP python_gc_collections_total Number of times this generation was collected
+# TYPE python_gc_collections_total counter
+python_gc_collections_total{generation=&quot;0&quot;} 102.0
+python_gc_collections_total{generation=&quot;1&quot;} 9.0
+python_gc_collections_total{generation=&quot;2&quot;} 0.0
+# HELP python_info Python platform information
+# TYPE python_info gauge
+python_info{implementation=&quot;CPython&quot;,major=&quot;3&quot;,minor=&quot;11&quot;,patchlevel=&quot;3&quot;,version=&quot;3.11.3&quot;} 1.0
+# HELP aiotest_workers_user_count aiotest workers user count
+# TYPE aiotest_workers_user_count gauge
+aiotest_workers_user_count{node=&quot;local&quot;} 1.0
+# HELP aiotest_workers_cpu_usage aiotest workers cpu usage
+# TYPE aiotest_workers_cpu_usage gauge
+aiotest_workers_cpu_usage{node=&quot;Local&quot;} 0.3
+# HELP aiotest_response_content_length aiotest response content length
+# TYPE aiotest_response_content_length gauge
+aiotest_response_content_length{code=&quot;200&quot;,method=&quot;POST&quot;,name=&quot;/login&quot;} 1115.0
+aiotest_response_content_length{code=&quot;200&quot;,method=&quot;POST&quot;,name=&quot;/search&quot;} 7836.0
+aiotest_response_content_length{code=&quot;200&quot;,method=&quot;GET&quot;,name=&quot;/personalInfo&quot;} 401.0
+# HELP aiotest_response_failure_total aiotest response failure
+# TYPE aiotest_response_failure_total counter
+# HELP aiotest_user_error_total aiotest user error
+# TYPE aiotest_user_error_total counter
+# HELP aiotest_response_times aiotest response times
+# TYPE aiotest_response_times histogram
+aiotest_response_times_bucket{code=&quot;200&quot;,le=&quot;50.0&quot;,method=&quot;POST&quot;,name=&quot;/login&quot;} 0.0
+aiotest_response_times_bucket{code=&quot;200&quot;,le=&quot;100.0&quot;,method=&quot;POST&quot;,name=&quot;/login&quot;} 0.0
+aiotest_response_times_bucket{code=&quot;200&quot;,le=&quot;200.0&quot;,method=&quot;POST&quot;,name=&quot;/login&quot;} 0.0
+aiotest_response_times_bucket{code=&quot;200&quot;,le=&quot;300.0&quot;,method=&quot;POST&quot;,name=&quot;/login&quot;} 1.0
+aiotest_response_times_bucket{code=&quot;200&quot;,le=&quot;400.0&quot;,method=&quot;POST&quot;,name=&quot;/login&quot;} 1.0
+aiotest_response_times_bucket{code=&quot;200&quot;,le=&quot;500.0&quot;,method=&quot;POST&quot;,name=&quot;/login&quot;} 1.0
+aiotest_response_times_bucket{code=&quot;200&quot;,le=&quot;600.0&quot;,method=&quot;POST&quot;,name=&quot;/login&quot;} 1.0
+aiotest_response_times_bucket{code=&quot;200&quot;,le=&quot;700.0&quot;,method=&quot;POST&quot;,name=&quot;/login&quot;} 1.0
+aiotest_response_times_bucket{code=&quot;200&quot;,le=&quot;800.0&quot;,method=&quot;POST&quot;,name=&quot;/login&quot;} 1.0
+aiotest_response_times_bucket{code=&quot;200&quot;,le=&quot;900.0&quot;,method=&quot;POST&quot;,name=&quot;/login&quot;} 1.0
+aiotest_response_times_bucket{code=&quot;200&quot;,le=&quot;1000.0&quot;,method=&quot;POST&quot;,name=&quot;/login&quot;} 1.0
+aiotest_response_times_bucket{code=&quot;200&quot;,le=&quot;2000.0&quot;,method=&quot;POST&quot;,name=&quot;/login&quot;} 1.0
+aiotest_response_times_bucket{code=&quot;200&quot;,le=&quot;5000.0&quot;,method=&quot;POST&quot;,name=&quot;/login&quot;} 1.0
+aiotest_response_times_bucket{code=&quot;200&quot;,le=&quot;8000.0&quot;,method=&quot;POST&quot;,name=&quot;/login&quot;} 1.0
+aiotest_response_times_bucket{code=&quot;200&quot;,le=&quot;+Inf&quot;,method=&quot;POST&quot;,name=&quot;/login&quot;} 1.0
+aiotest_response_times_count{code=&quot;200&quot;,method=&quot;POST&quot;,name=&quot;/login&quot;} 1.0
+aiotest_response_times_sum{code=&quot;200&quot;,method=&quot;POST&quot;,name=&quot;/login&quot;} 277.0
+aiotest_response_times_bucket{code=&quot;200&quot;,le=&quot;50.0&quot;,method=&quot;POST&quot;,name=&quot;/search&quot;} 2.0
+aiotest_response_times_bucket{code=&quot;200&quot;,le=&quot;100.0&quot;,method=&quot;POST&quot;,name=&quot;/search&quot;} 2.0
+aiotest_response_times_bucket{code=&quot;200&quot;,le=&quot;200.0&quot;,method=&quot;POST&quot;,name=&quot;/search&quot;} 2.0
+aiotest_response_times_bucket{code=&quot;200&quot;,le=&quot;300.0&quot;,method=&quot;POST&quot;,name=&quot;/search&quot;} 2.0
+aiotest_response_times_bucket{code=&quot;200&quot;,le=&quot;400.0&quot;,method=&quot;POST&quot;,name=&quot;/search&quot;} 2.0
+aiotest_response_times_bucket{code=&quot;200&quot;,le=&quot;500.0&quot;,method=&quot;POST&quot;,name=&quot;/search&quot;} 2.0
+aiotest_response_times_bucket{code=&quot;200&quot;,le=&quot;600.0&quot;,method=&quot;POST&quot;,name=&quot;/search&quot;} 2.0
+aiotest_response_times_bucket{code=&quot;200&quot;,le=&quot;700.0&quot;,method=&quot;POST&quot;,name=&quot;/search&quot;} 2.0
+aiotest_response_times_bucket{code=&quot;200&quot;,le=&quot;800.0&quot;,method=&quot;POST&quot;,name=&quot;/search&quot;} 2.0
+aiotest_response_times_bucket{code=&quot;200&quot;,le=&quot;900.0&quot;,method=&quot;POST&quot;,name=&quot;/search&quot;} 2.0
+aiotest_response_times_bucket{code=&quot;200&quot;,le=&quot;1000.0&quot;,method=&quot;POST&quot;,name=&quot;/search&quot;} 2.0
+aiotest_response_times_bucket{code=&quot;200&quot;,le=&quot;2000.0&quot;,method=&quot;POST&quot;,name=&quot;/search&quot;} 2.0
+aiotest_response_times_bucket{code=&quot;200&quot;,le=&quot;5000.0&quot;,method=&quot;POST&quot;,name=&quot;/search&quot;} 2.0
+aiotest_response_times_bucket{code=&quot;200&quot;,le=&quot;8000.0&quot;,method=&quot;POST&quot;,name=&quot;/search&quot;} 2.0
+aiotest_response_times_bucket{code=&quot;200&quot;,le=&quot;+Inf&quot;,method=&quot;POST&quot;,name=&quot;/search&quot;} 2.0
+aiotest_response_times_count{code=&quot;200&quot;,method=&quot;POST&quot;,name=&quot;/search&quot;} 2.0
+aiotest_response_times_sum{code=&quot;200&quot;,method=&quot;POST&quot;,name=&quot;/search&quot;} 79.0
+aiotest_response_times_bucket{code=&quot;200&quot;,le=&quot;50.0&quot;,method=&quot;GET&quot;,name=&quot;/personalInfo&quot;} 2.0
+aiotest_response_times_bucket{code=&quot;200&quot;,le=&quot;100.0&quot;,method=&quot;GET&quot;,name=&quot;/personalInfo&quot;} 2.0
+aiotest_response_times_bucket{code=&quot;200&quot;,le=&quot;200.0&quot;,method=&quot;GET&quot;,name=&quot;/personalInfo&quot;} 2.0
+aiotest_response_times_bucket{code=&quot;200&quot;,le=&quot;300.0&quot;,method=&quot;GET&quot;,name=&quot;/personalInfo&quot;} 2.0
+aiotest_response_times_bucket{code=&quot;200&quot;,le=&quot;400.0&quot;,method=&quot;GET&quot;,name=&quot;/personalInfo&quot;} 2.0
+aiotest_response_times_bucket{code=&quot;200&quot;,le=&quot;500.0&quot;,method=&quot;GET&quot;,name=&quot;/personalInfo&quot;} 2.0
+aiotest_response_times_bucket{code=&quot;200&quot;,le=&quot;600.0&quot;,method=&quot;GET&quot;,name=&quot;/personalInfo&quot;} 2.0
+aiotest_response_times_bucket{code=&quot;200&quot;,le=&quot;700.0&quot;,method=&quot;GET&quot;,name=&quot;/personalInfo&quot;} 2.0
+aiotest_response_times_bucket{code=&quot;200&quot;,le=&quot;800.0&quot;,method=&quot;GET&quot;,name=&quot;/personalInfo&quot;} 2.0
+aiotest_response_times_bucket{code=&quot;200&quot;,le=&quot;900.0&quot;,method=&quot;GET&quot;,name=&quot;/personalInfo&quot;} 2.0
+aiotest_response_times_bucket{code=&quot;200&quot;,le=&quot;1000.0&quot;,method=&quot;GET&quot;,name=&quot;/personalInfo&quot;} 2.0
+aiotest_response_times_bucket{code=&quot;200&quot;,le=&quot;2000.0&quot;,method=&quot;GET&quot;,name=&quot;/personalInfo&quot;} 2.0
+aiotest_response_times_bucket{code=&quot;200&quot;,le=&quot;5000.0&quot;,method=&quot;GET&quot;,name=&quot;/personalInfo&quot;} 2.0
+aiotest_response_times_bucket{code=&quot;200&quot;,le=&quot;8000.0&quot;,method=&quot;GET&quot;,name=&quot;/personalInfo&quot;} 2.0
+aiotest_response_times_bucket{code=&quot;200&quot;,le=&quot;+Inf&quot;,method=&quot;GET&quot;,name=&quot;/personalInfo&quot;} 2.0
+aiotest_response_times_count{code=&quot;200&quot;,method=&quot;GET&quot;,name=&quot;/personalInfo&quot;} 2.0
+aiotest_response_times_sum{code=&quot;200&quot;,method=&quot;GET&quot;,name=&quot;/personalInfo&quot;} 63.0
+</code></pre>
+<h3 id="aiotests-grafana-interface">Aiotest’s grafana interface</h3>
+<p>open http://localhost:3000
+<img alt="grafana" src="../images/grafana01.png" />
+<img alt="grafana" src="../images/grafana02.png" /></p>
+<h3 id="more-options">More options</h3>
+<p>To run Aiotest distributed across multiple Python processes or machines, you start a single Aiotest master process
+with the <code>--master</code> command line parameter, and then any number of Aiotest worker processes using the <code>--worker</code>
+command line parameter. See <a href="../running-distributed/">Distributed load test</a> for more info.</p>
+<p>To see all available options type: <code>aiotest --help</code>.</p>
+<h3 id="next-steps">Next steps</h3>
+<p>Now, let's have a more in-depth look at aiotestfiles and what they can do: <a href="../writing-a-aiotestfile/">Writing a aiotestfile</a>.</p>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../installation/" class="btn btn-neutral float-left" title="Installation"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../writing-a-aiotestfile/" class="btn btn-neutral float-right" title="Writing a aiotestfile">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+    
+      <span><a href="../installation/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../writing-a-aiotestfile/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "..";</script>
+    <script src="../js/theme_extra.js"></script>
+    <script src="../js/theme.js"></script>
+      <script src="../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

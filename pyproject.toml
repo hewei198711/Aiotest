@@ -31,6 +31,7 @@ dependencies = [
   "prometheus-client ==0.17.1",
   "tornado >=6.1",
   "uvloop ==0.17.0;platform_system!='Windows'",
+  "mkdocstrings[python]>=0.18",
 ]
 classifiers = [
     "Topic :: Software Development :: Testing :: Traffic Generation",

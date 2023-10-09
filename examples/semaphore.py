@@ -12,7 +12,7 @@ all_user_start_complete = Semaphore()
 all_user_start_complete.acquire()
 
 
-async def on_start_complete(user_count):
+async def on_start_complete(user_count, runner):
     all_user_start_complete.release()
 
           
@@ -30,6 +30,7 @@ class TestUser(AsyncHttpUser):
         url="/post"
         async with self.session.post(url=url) as resp:
             self.token = await resp.json()
+        all_user_start_complete.wait()
 
     async def test_get(self):
         url = "/get"

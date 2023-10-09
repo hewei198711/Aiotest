@@ -32,7 +32,7 @@ async def on_init():
 async def on_test_start(runner):
     print("test start...")
 
-async def on_start_complete(user_count):
+async def on_start_complete(user_count, runner):
     print(f"Number of simulated users: {user_count}")
 
 async def on_stats_request(runner, request_name, request_method, response_time, response_length, error):

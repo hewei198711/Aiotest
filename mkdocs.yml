@@ -1,0 +1,21 @@
+site_name: Aiotest
+nav:
+  - What is Aiotest: what-is-aiotest.md
+  - Installation: installation.md
+  - Your first test: quickstart.md
+  - Writing a aiotestfile: writing-a-aiotestfile.md
+  - Command Line Options: command-line-options.md
+  - Distributed load test: running-distributed.md
+  - Seckill semaphore wait: seckill-semaphore-wait.md
+  - Running In Command Line: running-in-command-line.md
+  - Running in Docker: running-in-docker.md
+  - Custom load shapes: custom-load-shape.md
+  - Event hooks: events-hooks.md
+  - Data Presentation: prometheus-grafana.md
+  - Testing Other Systems: testing-other-systems.md
+  - Api: api.md
+theme:
+  name: "readthedocs"
+plugins:
+  - search
+  - mkdocstrings

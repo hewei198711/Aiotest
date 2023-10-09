@@ -7,7 +7,7 @@ pipeline {
         stage('Gitlab Pull') {
             steps {
                 // credentialsId ,url: set the value based on the actual situation
-                git branch:'main',credentialsId: '62KJGFbf-0041-4GEa-aDee-1212d7b738ee', poll: false, url: 'git@gitlab2.taobao.com:uat/aiotest_taobao.git'
+                git branch:'main',credentialsId: '62KJGFbf-0041-4GEa-aDee-1212d7b738ee', poll: false, url: 'git@gitlab2.taobao.com:uat/aiotest_tb.git'
             }
         }
         // Distribute code to individual hosts
@@ -16,7 +16,7 @@ pipeline {
                 sshPublisher(
                     publishers: [
                         sshPublisherDesc(
-                            configName: '192.11.40.22', 
+                            configName: '192.168.0.10', 
                             sshCredentials: [
                                 encryptedPassphrase: '{AQADFGGTREW34UHJGT5438Wde4iaoCRU=}', 
                                 key: '', 
@@ -28,14 +28,14 @@ pipeline {
                                     cleanRemote: false, 
                                     excludes: '', 
                                     execCommand: '''ls
-                                                    cd aiotest_uc
+                                                    cd aiotest_tb
                                                     chmod -R 777 ./*''', 
                                     execTimeout: 300000, 
                                     flatten: false, 
                                     makeEmptyDirs: false, 
                                     noDefaultExcludes: false, 
                                     patternSeparator: '[, ]+', 
-                                    remoteDirectory: 'aiotest_uc', 
+                                    remoteDirectory: 'aiotest_tb', 
                                     remoteDirectorySDF: false, 
                                     removePrefix: '', 
                                     sourceFiles: '**'
@@ -46,7 +46,7 @@ pipeline {
                             verbose: false
                         ),
                         sshPublisherDesc(
-                            configName: '192.11.40.23', 
+                            configName: '192.168.0.11', 
                             sshCredentials: [
                                 encryptedPassphrase: '{AQADFGGTREW34UHJGT5438Wde4iaoCRU=}', 
                                 key: '', 
@@ -58,14 +58,14 @@ pipeline {
                                     cleanRemote: false, 
                                     excludes: '', 
                                     execCommand: '''ls
-                                                    cd aiotest_uc
+                                                    cd aiotest_tb
                                                     chmod -R 777 ./*''', 
                                     execTimeout: 300000, 
                                     flatten: false, 
                                     makeEmptyDirs: false, 
                                     noDefaultExcludes: false, 
                                     patternSeparator: '[, ]+', 
-                                    remoteDirectory: 'aiotest_uc', 
+                                    remoteDirectory: 'aiotest_tb', 
                                     remoteDirectorySDF: false, 
                                     removePrefix: '', 
                                     sourceFiles: '**'
@@ -76,7 +76,7 @@ pipeline {
                             verbose: false
                         ),
                         sshPublisherDesc(
-                            configName: '192.11.40.24', 
+                            configName: '192.168.0.12', 
                             sshCredentials: [
                                 encryptedPassphrase: '{AQADFGGTREW34UHJGT5438Wde4iaoCRU=}', 
                                 key: '', 
@@ -88,14 +88,74 @@ pipeline {
                                     cleanRemote: false, 
                                     excludes: '', 
                                     execCommand: '''ls
-                                                    cd aiotest_uc
+                                                    cd aiotest_tb
                                                     chmod -R 777 ./*''', 
                                     execTimeout: 300000, 
                                     flatten: false, 
                                     makeEmptyDirs: false, 
                                     noDefaultExcludes: false, 
                                     patternSeparator: '[, ]+', 
-                                    remoteDirectory: 'aiotest_uc', 
+                                    remoteDirectory: 'aiotest_tb', 
+                                    remoteDirectorySDF: false, 
+                                    removePrefix: '', 
+                                    sourceFiles: '**'
+                                )
+                            ], 
+                            usePromotionTimestamp: false, 
+                            useWorkspaceInPromotion: false, 
+                            verbose: false
+                        ),
+                        sshPublisherDesc(
+                            configName: '192.168.0.13', 
+                            sshCredentials: [
+                                encryptedPassphrase: '{AQADFGGTREW34UHJGT5438Wde4iaoCRU=}', 
+                                key: '', 
+                                keyPath: '', 
+                                username: 'root'
+                            ], 
+                            transfers: [
+                                sshTransfer(
+                                    cleanRemote: false, 
+                                    excludes: '', 
+                                    execCommand: '''ls
+                                                    cd aiotest_tb
+                                                    chmod -R 777 ./*''', 
+                                    execTimeout: 300000, 
+                                    flatten: false, 
+                                    makeEmptyDirs: false, 
+                                    noDefaultExcludes: false, 
+                                    patternSeparator: '[, ]+', 
+                                    remoteDirectory: 'aiotest_tb', 
+                                    remoteDirectorySDF: false, 
+                                    removePrefix: '', 
+                                    sourceFiles: '**'
+                                )
+                            ], 
+                            usePromotionTimestamp: false, 
+                            useWorkspaceInPromotion: false, 
+                            verbose: false
+                        ),
+                        sshPublisherDesc(
+                            configName: '192.168.0.14', 
+                            sshCredentials: [
+                                encryptedPassphrase: '{AQADFGGTREW34UHJGT5438Wde4iaoCRU=}', 
+                                key: '', 
+                                keyPath: '', 
+                                username: 'root'
+                            ], 
+                            transfers: [
+                                sshTransfer(
+                                    cleanRemote: false, 
+                                    excludes: '', 
+                                    execCommand: '''ls
+                                                    cd aiotest_tb
+                                                    chmod -R 777 ./*''', 
+                                    execTimeout: 300000, 
+                                    flatten: false, 
+                                    makeEmptyDirs: false, 
+                                    noDefaultExcludes: false, 
+                                    patternSeparator: '[, ]+', 
+                                    remoteDirectory: 'aiotest_tb', 
                                     remoteDirectorySDF: false, 
                                     removePrefix: '', 
                                     sourceFiles: '**'
@@ -115,7 +175,7 @@ pipeline {
                 sshPublisher(
                     publishers: [
                         sshPublisherDesc(
-                            configName: '192.11.40.22', 
+                            configName: '192.168.0.10', 
                             sshCredentials: [
                                 encryptedPassphrase: '{AQADFGGTREW34UHJGT5438Wde4iaoCRU=}', 
                                 key: '', 
@@ -127,7 +187,7 @@ pipeline {
                                     cleanRemote: false, 
                                     excludes: '', 
                                     execCommand: '''ls
-                                                    cd aiotest_uc
+                                                    cd aiotest_tb
                                                     docker-compose -f docker-compose-master.yml up -d''', 
                                     execTimeout: 300000, 
                                     flatten: false, 
@@ -145,7 +205,7 @@ pipeline {
                             verbose: true
                         ),
                         sshPublisherDesc(
-                            configName: '192.11.40.23', 
+                            configName: '192.168.0.11', 
                             sshCredentials: [
                                 encryptedPassphrase: '{AQADFGGTREW34UHJGT5438Wde4iaoCRU=}', 
                                 key: '', 
@@ -157,8 +217,8 @@ pipeline {
                                     cleanRemote: false, 
                                     excludes: '', 
                                     execCommand: '''ls
-                                                    cd aiotest_uc
-                                                    docker-compose -f docker-compose-worker.yml up -d --scale worker=3''', 
+                                                    cd aiotest_tb
+                                                    docker-compose -f docker-compose-worker.yml up -d --scale worker=4''', 
                                     execTimeout: 300000, 
                                     flatten: false, 
                                     makeEmptyDirs: false, 
@@ -175,7 +235,7 @@ pipeline {
                             verbose: true
                         ),
                         sshPublisherDesc(
-                            configName: '192.11.40.24', 
+                            configName: '192.168.0.12', 
                             sshCredentials: [
                                 encryptedPassphrase: '{AQADFGGTREW34UHJGT5438Wde4iaoCRU=}', 
                                 key: '', 
@@ -187,8 +247,68 @@ pipeline {
                                     cleanRemote: false, 
                                     excludes: '', 
                                     execCommand: '''ls
-                                                    cd aiotest_uc
-                                                    docker-compose -f docker-compose-worker.yml up -d --scale worker=3''', 
+                                                    cd aiotest_tb
+                                                    docker-compose -f docker-compose-worker.yml up -d --scale worker=4''', 
+                                    execTimeout: 300000, 
+                                    flatten: false, 
+                                    makeEmptyDirs: false, 
+                                    noDefaultExcludes: false, 
+                                    patternSeparator: '[, ]+', 
+                                    remoteDirectory: '', 
+                                    remoteDirectorySDF: false, 
+                                    removePrefix: '', 
+                                    sourceFiles: ''
+                                )
+                            ], 
+                            usePromotionTimestamp: false, 
+                            useWorkspaceInPromotion: false, 
+                            verbose: true
+                        ),
+                        sshPublisherDesc(
+                            configName: '192.168.0.13', 
+                            sshCredentials: [
+                                encryptedPassphrase: '{AQADFGGTREW34UHJGT5438Wde4iaoCRU=}', 
+                                key: '', 
+                                keyPath: '', 
+                                username: 'root'
+                            ], 
+                            transfers: [
+                                sshTransfer(
+                                    cleanRemote: false, 
+                                    excludes: '', 
+                                    execCommand: '''ls
+                                                    cd aiotest_tb
+                                                    docker-compose -f docker-compose-worker.yml up -d --scale worker=4''', 
+                                    execTimeout: 300000, 
+                                    flatten: false, 
+                                    makeEmptyDirs: false, 
+                                    noDefaultExcludes: false, 
+                                    patternSeparator: '[, ]+', 
+                                    remoteDirectory: '', 
+                                    remoteDirectorySDF: false, 
+                                    removePrefix: '', 
+                                    sourceFiles: ''
+                                )
+                            ], 
+                            usePromotionTimestamp: false, 
+                            useWorkspaceInPromotion: false, 
+                            verbose: true
+                        ),
+                        sshPublisherDesc(
+                            configName: '192.168.0.14', 
+                            sshCredentials: [
+                                encryptedPassphrase: '{AQADFGGTREW34UHJGT5438Wde4iaoCRU=}', 
+                                key: '', 
+                                keyPath: '', 
+                                username: 'root'
+                            ], 
+                            transfers: [
+                                sshTransfer(
+                                    cleanRemote: false, 
+                                    excludes: '', 
+                                    execCommand: '''ls
+                                                    cd aiotest_tb
+                                                    docker-compose -f docker-compose-worker.yml up -d --scale worker=4''', 
                                     execTimeout: 300000, 
                                     flatten: false, 
                                     makeEmptyDirs: false, 

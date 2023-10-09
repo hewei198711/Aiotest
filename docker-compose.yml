@@ -1,0 +1,73 @@
+# docker-compose -f docker-compose.yml up -d
+version: '3'
+services:
+  jenkins:
+    image: jenkinsci/blueocean
+    container_name: jenkins
+    user: root
+    restart: unless-stopped
+    ports:
+      - 8080:8080
+      - 50000:50000
+    volumes:
+      - $PWD/jenkins_data:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /root/.ssh:/root/.ssh
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    user: root
+    restart: unless-stopped
+    ports:
+    - 9090:9090
+    command:
+    - --config.file=/etc/prometheus/prometheus.yml
+    volumes:
+    - $PWD/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+
+  grafana:
+    image: grafana/grafana-enterprise
+    container_name: grafana
+    user: root
+    restart: unless-stopped
+    ports:
+    - 3000:3000
+    command:
+    - --config.file=/etc/prometheus/prometheus.yml
+    volumes:
+    - $PWD/grafana_data:/var/lib/grafana
+    depends_on:
+    - prometheus
+
+  redis:
+    image: redis/redis-stack-server:latest
+    container_name: redis
+    user: root
+    restart: unless-stopped
+    volumes:
+    - $PWD/redis_data/:/data
+    - $PWD/local-redis-stack.conf:/redis-stack.conf
+    ports:
+    - 6379:6379
+  
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: node-exporter
+    user: root
+    restart: unless-stopped
+    volumes:
+    - /proc:/host/proc:ro
+    - /sys:/host/sys:ro
+    - /:/rootfs:ro
+    command:
+    - '--path.procfs=/host/proc'
+    - '--path.rootfs=/rootfs'
+    - '--path.sysfs=/host/sys'
+    - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    ports:
+    - 9100:9100
+
+  aiotest:
+    build: .
+    image: aiotest:latest

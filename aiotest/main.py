@@ -59,7 +59,7 @@ async def parse_options(args=None):
     parser.add_argument(
         '--worker',
         action='store_true',
-        help="Set aiotest to run in distributed mode with this process as slave"
+        help="Set aiotest to run in distributed mode with this process as worker"
     )
 
     parser.add_argument(
@@ -115,7 +115,7 @@ async def parse_options(args=None):
         '-t', '--run-time',
         type=str,
         default=None,
-        help="Stop after the specified amount of time, e.g. (300s, 20m, 3h, 1h30m, etc.). Only used together with --no-web"
+        help="Stop after the specified amount of time, e.g. (300s, 20m, 3h, 1h30m, etc.)"
     )    
 
     # prometheus
@@ -327,7 +327,7 @@ async def main():
             )    
    
     if shape_class and (num_users or rate or options.run_time):
-        logger.warning("The specified aiotestfile contains a tacticss_class but a conflicting argument was specified: users or rate or run_time. Ignoring arguments")
+        logger.warning("aiotestfile contains the LoadUserShape subclass, which ignores arguments specified on the command line :users or rate or run_time.")
         options.run_time = None
 
     if options.show_users_wight:

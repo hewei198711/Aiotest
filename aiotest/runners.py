@@ -115,7 +115,7 @@ class Runner:
         elif self.state == STATE_INIT:
             await self.start_users(user_count, rate)
             self.update_state(STATE_RUNNING)
-            await events.start_complete.fire(user_count=self.user_count)
+            await events.start_complete.fire(user_count=self.user_count, runner=self)
         else:
             logger.error(f"runner state is {self.state}")
             sys.exit(1)
@@ -458,7 +458,7 @@ class MasterRunner(DistributedRunner):
                 self.workers[worker_id].user_count = msg.data["user_count"]
                 if len(self.workers.running) == len(self.workers.all):
                     self.update_state(STATE_RUNNING)
-                    await events.start_complete.fire(user_count = self.user_count)
+                    await events.start_complete.fire(user_count = self.user_count, runner=self)
             elif msg.type == "stopped":
                 if worker_id in self.workers:
                     del self.workers[worker_id]
@@ -490,7 +490,7 @@ class WorkerRunner(DistributedRunner):
         events.start_complete += self.on_start_complete
         events.quitting += self.on_quitting
  
-    async def on_start_complete(self, user_count):
+    async def on_start_complete(self, user_count, runner):
         await self.worker.send(Message("start_complete", {"user_count":user_count}, self.worker_id))
         self.worker_state = STATE_RUNNING
 

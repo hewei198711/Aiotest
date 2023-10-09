@@ -1,113 +1,101 @@
-# Aiotest
+# What is Aiotest?
+Aiotest is an easy to use, scriptable and scalable performance testing tool.
 
+You define the behaviour of your users in Python asyncio code, instead of being stuck in a UI or restrictive domain specific language.
 
-`Aiotest` 是一个开源的 API 性能测试工具，支持 HTTP(S)/HTTP2 等网络协议，基于 `Python Asyncio` 。
+This makes Aiotest infinitely expandable and very developer friendly.
 
-## 设计理念
+To start using Aiotest, go to [Installation](installation.md)
 
-- Asyncio 并发生成user类实例（一个实例模拟一个用户），await串行执行待测 API coroutine（例如各个API互为前置条件的商城下单）
-- 可重写user.start()方法，并行执行待测 API coroutine（例如商城首页API互不为前置条件时，可并行）
+### Install the package
 
-## 核心特性
-
-- 网络协议：完整支持 HTTP(S)/HTTP2，可扩展支持 WebSocket/TCP/UDP/RPC 等更多协议
-- 自动收集用例：通过是否“Test”开头或结尾，自动查找需要执行的User，LoadUserShape类，通过是否“test”开头或“test”结尾，自动查找需要执行的 API coroutine
-- 支持多用户类：一个测试文件可以有多个user类（user类不建议内嵌user类），并通过user.weight属性设置不同的执行比例（例如通过购物车提交订单的用户类，直接提交订单的用户类）
-- 串行 & 并行执行待测API：默认串行执行 API coroutine，可重写user.start()方法，并行执行代测API（例如商城首页API互不为前置条件时，可并行）
-- 数据搜集 & 展示：基于Prometheus收集数据，Grafana展示数据
-
-## 下载安装
-```python
-
+```console
 pip install aiotest
 ```
+Run aiotest
+```console
+aiotest -f aiotestfile.py
+``` 
 
 ```python
-import asyncio
-from aiotest import AsyncHttpUser, LoadUserShape
-from aiotest import runners
+from aiotest import AsyncHttpUser, LoadUserShape, logger
 
 class TestUser(AsyncHttpUser):
-    "用户类必须以 Test 开头或结尾，且继承 AsyncHttpUser"
-    wait_time = 1 # 每个API request 之间休息时间，默认1秒
-    weight = 1 # 用户类权重（可以有多个用户类：方便设置不同用户场景的执行比例）
     host = "https://uat.taobao.com"
     token = None
 
     async def on_start(self):
-        "每个用户类首先，且仅执行一次，用于登录等初始化数据操作"
-        url="/login", 
-        data={"username": "test01", "password": "123456"}
-        # self.session 为 aiohttp.ClientSession() 实例，可重写
+        url = "/login"
+        data = {"username": "admin", "password": "123456"}
         async with self.session.post(url=url, data=data) as resp:
             data = await resp.json()
             self.token = data["token"]
 
     async def test_search(self):
-        "待测试API 必须以 test 开头，或者以 test 结尾"
         url = "/search"
-        data = {"keyword": "礼服"}
-        async with self.session.post(url=url, json=data) as resp:
-            data = await resp.json()
-            # 收集请求信息
+        hearders = {"Authorization": self.token}
+        data = {"keyword": "F22"}
+        async with self.session.post(url=url, hearders=hearders, json=data) as resp:
+            data = await resp.json()      
 
-    async def test_personalInfo(self):
-        "待测试API,可通过success，failure 手动设置请求成功/失败"
+    async def test_personal_info(self):
         url = "/personalInfo"
-        async with self.session.get(url=url) as resp:
+        async with self.session.get(url=url, hearders=hearders) as resp:
             data = await resp.json()
-            if data["id"] != "123456":
-                resp.failure("id != 123456")
-
-    async def start(self):
-        """
-        用户类执行测试API的调用程序，默认是从上到下依次阻塞执行所有待测API
-        可以重写为异步执行所有代测API(例如商城首页API互不为前置条件时)
-        """
-        try:
-            try:
-                await self.on_start()
-                await asyncio.sleep(self.wait_time)
-            except:
-                await self.on_stop()
-                raise                
-            while True:
-                for job in self.jobs:
-                    await job(self)
-                    await asyncio.sleep(self.wait_time)
-        except asyncio.CancelledError:
-            await self.on_stop()
-            raise
-        except Exception as e:
-            await events.user_error.fire(runner=runners.global_runner, error=f"{sys.exc_info()[0].__name__}: {e}" + "".join(traceback.format_tb(sys.exc_info()[2])).strip())
-
-
-    class TestShape(LoadUserShape):
-        "用户阶梯加载策略类，非必须"
-        stages = [
-            {"duration": 600, "user_count": 5000, "rate": 500},
-            {"duration": 1200, "user_count": 10000, "rate": 500},
-            {"duration": 1800, "user_count": 20000, "rate": 500},
-            {"duration": 2400, "user_count": 10000, "rate": 500},
-            {"duration": 3000, "user_count": 1000, "rate": 500},
-        ]
-
-        def tick(self):
-            run_time = self.get_run_time()
-
-            for stage in self.stages:
-                if run_time < stage["duration"]:
-                    tick_data = (stage["user_count"], stage["rate"])
-                    return tick_data
-
-            return None
 
 ```
+### Features
+* **Write test scenarios in [python asyncio](https://docs.python.org/zh-cn/3/library/asyncio.html)**
+  
+    If you want your users to loop, perform some conditional behaviour or do some calculations, you just use the asyncio programming constructs provided by Python.
+    Aiotest runs every user inside its task (a asyncio task). This enables you to write your tests like normal (async) Python code instead of having to use callbacks or some other mechanism.
+    Because your scenarios are "just python" you can use your regular IDE, and version control your tests as regular code
 
-## 鸣谢
+* **Distributed and scalable - supports hundreds of thousands of concurrent users**
+  
+    Aiotest makes it easy to run load tests distributed over multiple machines.
+    It is asyncio-based (using [python asyncio](https://docs.python.org/zh-cn/3/library/asyncio.html), which makes it possible for a single process to handle many thousands concurrent users.
+    While there may be other tools that are capable of doing more requests per second on a given hardware, the low overhead of each Aiotest user makes it very suitable for testing highly concurrent workloads.
 
-- Aiotest 为 Locust 的 asyncio 重写版(1.参考Pytest简化待测Class/API收集; 2.抛弃TaskSet类,User类不内嵌User类,仅通过User.weight设置执行比例; 3.抛弃Stats类，通过Prometheus收集数据； 4.抛弃Web类，通过Grafana展示数据)
+* **Command-based UI**
+  
+    It can also be run without the UI, making it easy to use for CI/CD testing.
 
-* Locust: [locust.io](https://locust.io)
+* **Can test any system**
+  
+    Even though Aiotest primarily works with web sites/services, it can be used to test almost any system or protocol. Just [write a client for what you want to test](testing-other-systems.md)
 
+* **Prometheus-Grafana-based Data collection and presentation**
+  
+    Use Prometheus to collect test data and Grafana to present it
+    ![grafana](images/grafana01.png)
+    ![grafana](images/grafana02.png)
 
+* **Automatic collection of test cases(Reference pytest)**
+    
+    An automatic collection of use cases similar to pytest, subclasses of User and LoadUserShape must start or end with Test(eg: TestUser,TestShape...), and api coroutines to be tested must also start or end with test(eg: test_search, test_personal_info...)
+  
+* **Multiple user classes, flexible setting of test scenarios**
+  
+    A aiotestfile can have multiple user classes at the same time, set different execution weights through the user class attribute weight, and flexibly set various test scenarios, example, shopping mall ordering scene, a user class simulating direct placing an order, and a user class simulating shopping cart placing an order.
+
+* **Custom load shapes**
+  
+    Sometimes a completely custom shaped load test is required that cannot be achieved by simply setting or changing the user count and spawn rate. For example, you might want to generate a load spike or ramp up and down at custom times. By using a LoadUserShape class you have full control over the user count and spawn rate at all times.
+
+* **Serial, parallel execution of api coroutines**
+  
+    Each user (a user class instance) acquiesce executes the test api coroutine serial from top to bottom(eg: when placing an order in the mall, the rear interface must wait for the return data from the front interface before it can be executed);You can override the self.start() method of the user class to execute the api coroutine to be tested in parallel(eg: api do not need to wait for the return data of other apis, and can be executed in parallel)
+
+### Authors 
+
+* [Hewei github](https://github.com/hewei198711) mail: hewei1987@163.com
+  
+### License
+
+Open source licensed under the MIT license (see LICENSE file for details).
+
+### Express one's thanks
+
+Aiotest is a rewrite of locust (based on python asyncio) that drops the TaskSet class, sets the API to be tested only through the User class, drops the Stats class, collects test data through Prometheus, drops the Web class, and presents test data through Grafana
+* [locust.io](https://locust.io)

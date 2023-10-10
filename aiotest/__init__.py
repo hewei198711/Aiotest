@@ -7,7 +7,7 @@ from aiotest.client import ClientSession, ClientTimeout
 from aiotest.log import logger
 
 
-__version__ = "0.5.7"
+__version__ = "0.5.8"
 
 __all__ = (
     "User", 

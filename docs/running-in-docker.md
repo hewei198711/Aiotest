@@ -25,7 +25,7 @@ EXPOSE 8089 5557
 ```
 ```console
 # Notice the dot at the end
-docker build -t aiotest:v0.5.7 .
+docker build -t aiotest:latest .
 ```
 ### Docker Compose
 Here's an example Docker Compose file that could be used to start both a master node, and worker nodes
@@ -37,7 +37,7 @@ version: '3'
   
 services:
   master:
-    image: aiotest:0.5.7
+    image: aiotest:latest
     ports:
      - "8089:8089"
      - "5557:5557"
@@ -51,7 +51,7 @@ version: '3'
   
 services:
   worker:
-    image: aiotest:0.5.7
+    image: aiotest:latest
     volumes:
       - ./:/root/aiotest
     command: aiotest -f aiotestfile.py --worker --master-host "192.168.0.10"
@@ -78,7 +78,7 @@ version: '3'
   
 services:
   local:
-    image: aiotest:0.5.7
+    image: aiotest:latest
     ports:
      - "8089:8089"
      - "5557:5557"

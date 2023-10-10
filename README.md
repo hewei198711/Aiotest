@@ -68,8 +68,8 @@ class TestUser(AsyncHttpUser):
 * **Prometheus-Grafana-based Data collection and presentation**
   
     Use Prometheus to collect test data and Grafana to present it
-    ![grafana](images/grafana01.png)
-    ![grafana](images/grafana02.png)
+    ![grafana](docs/images/grafana01.png)
+    ![grafana](docs/images/grafana02.png)
 
 * **Automatic collection of test cases(Reference pytest)**
     

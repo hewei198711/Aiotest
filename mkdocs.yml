@@ -10,7 +10,6 @@ repo_url: https://github.com/hewei198711/Aiotest
 # Theme
 theme:
   name: material
-  language: zh
   features:
     - navigation.instant
     - navigation.tracking
@@ -40,11 +39,9 @@ theme:
 # Plugins
 plugins:
   - search:
-      lang: zh, en
-  - minify:
-      minify_html: true
-  - git-revision-date-localized:
-      enable_creation_date: true
+      lang:
+        - zh
+        - en
 
 # Extensions
 markdown_extensions:

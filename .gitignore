@@ -37,6 +37,7 @@ htmlcov/
 coverage.xml
 *.cover
 .hypothesis/
+site/
 
 # IDEs
 .idea/

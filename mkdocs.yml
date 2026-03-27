@@ -1,0 +1,101 @@
+site_name: AIotest Documentation
+site_description: A comprehensive documentation for AIotest framework
+site_author: AIotest Team
+site_url: https://hewei198711.github.io/Aiotest/
+
+# Repository
+repo_name: hewei198711/Aiotest
+repo_url: https://github.com/hewei198711/Aiotest
+
+# Theme
+theme:
+  name: material
+  language: zh
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.indexes
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.tabs.link
+    - content.code.copy
+  palette:
+    - scheme: default
+      primary: teal
+      accent: cyan
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: teal
+      accent: cyan
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+# Plugins
+plugins:
+  - search:
+      lang: zh, en
+  - minify:
+      minify_html: true
+  - git-revision-date-localized:
+      enable_creation_date: true
+
+# Extensions
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.tabbed:
+      alternate_style: true
+  - tables
+  - footnotes
+  - attr_list
+  - md_in_html
+  - toc:
+      permalink: true
+
+# Navigation
+nav:
+  - 首页: README.md
+  - 快速开始:
+      - 入门指南: quickstart.md
+  - API 参考:
+      - CLI 模块: CLI_MODULE_DOC.md
+      - Clients 模块: CLIENTS_MODULE_DOC.md
+      - Events 模块: EVENTS_MODULE_DOC.md
+      - Exception 模块: EXCEPTION_MODULE_DOC.md
+      - Logger 模块: LOGGER_MODULE_DOC.md
+      - Main 模块: MAIN_MODULE_DOC.md
+      - Metrics 模块: METRICS_MODULE_DOC.md
+      - Shape 模块: SHAPE_MODULE_DOC.md
+      - State Manager 模块: STATE_MANAGER_MODULE_DOC.md
+      - Task Manager 模块: TASK_MANAGER_MODULE_DOC.md
+      - User Manager 模块: USER_MANAGER_MODULE_DOC.md
+      - Runners 模块: RUNNERS_MODULE_DOC.md
+      - Runner Factory 模块: RUNNER_FACTORY_MODULE_DOC.md
+      - Load Shape Manager 模块: LOAD_SHAPE_MANAGER_MODULE_DOC.md
+      - 分布式协调器模块: DISTRIBUTED_COORDINATOR_MODULE_DOC.md
+  - 最佳实践: BEST_PRACTICES.md
+  - 常见问题: FAQ.md
+  - 架构设计: ARCHITECTURE.md
+
+# Extra
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/hewei198711/Aiotest
+    - icon: fontawesome/brands/python
+      link: https://pypi.org/project/aiotest/
+
+# Copyright
+copyright: Copyright &copy; 2024 AIotest Team

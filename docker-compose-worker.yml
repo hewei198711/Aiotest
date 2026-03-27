@@ -1,9 +1,0 @@
-version: '3'
-  
-services:
-  worker:
-    image: aiotest:latest
-    volumes:
-      - ./:/root/aiotest
-    command: aiotest -f aiotestfile.py --worker --master-host "127.0.0.1" --master-port 5557
-    # docker-compose -f docker-compose-worker.yml up -d --scale worker=4

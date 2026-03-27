@@ -1,55 +1,41 @@
-[build-system]
-requires = ["setuptools>=61", "wheel", "setuptools_scm>=6.2"]
-build-backend = "setuptools.build_meta"
-
 [project]
 name = "aiotest"
-version = "0.5.8"
+version = "1.0.0"
+description = "基于 asyncio 的高性能负载测试框架"
 authors = [
-  { name="hewei", email="hewei1987@163.com" },
+    { name = "hewei", email = "hewei1987@163.com" },
 ]
-description = "Developer friendly load testing framework Based on asyncio"
-readme = "README.md"
-requires-python = ">=3.11.3"
-license = {text = "MIT License"}
-
 dependencies = [
-  "aiohttp ==3.8.5",
-  "aiosignal ==1.3.1",
-  "async-timeout ==4.0.3",
-  "attrs ==23.1.0",
-  "charset-normalizer ==3.2.0",
-  "colorama ==0.4.6",
-  "frozenlist ==1.4.0",
-  "idna ==3.4",
-  "loguru ==0.7.1",
-  "msgpack ==1.0.5",
-  "multidict ==6.0.4",
-  "pyzmq ==25.1.1",
-  "win32-setctime ==1.1.0",
-  "yarl ==1.9.2",
-  "psutil ==5.9.5",
-  "prometheus-client ==0.17.1",
-  "tornado >=6.1",
-  "uvloop ==0.17.0;platform_system!='Windows'",
-  "mkdocstrings[python]>=0.18",
+    "redis>=4.5.0",
+    "aiohttp>=3.8.0",
+    "prometheus-client>=0.17.0",
 ]
-classifiers = [
-    "Topic :: Software Development :: Testing :: Traffic Generation",
-    "License :: OSI Approved :: MIT License",
-    "Operating System :: OS Independent",
-    "Programming Language :: Python",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.11",
-    "Intended Audience :: Developers",
-    "Intended Audience :: System Administrators",
-    "Topic :: Software Development :: Testing",
-    "Topic :: Software Development :: Testing :: Traffic Generation",
-    "Topic :: System :: Distributed Computing",
+requires-python = ">=3.9"
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.isort]
+profile = "black"
+line_length = 88
+
+[tool.pylint]
+max-line-length = 88
+disable = [
+    "C0114",  # missing-module-docstring
+    "C0115",  # missing-class-docstring
+    "C0116",  # missing-function-docstring
 ]
 
-[project.urls]
-"Homepage" = "https://github.com/hewei198711/aiotest"
-
-[project.scripts]
-aiotest = "aiotest.main:run"
+[tool.ruff]
+line-length = 88
+select = [
+    "E",  # pycodestyle errors
+    "W",  # pycodestyle warnings
+    "F",  # pyflakes
+    "B",  # flake8-bugbear
+]
+ignore = [
+    "E501",  # line too long (use line-length instead)
+]

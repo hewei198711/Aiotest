@@ -1,142 +1,239 @@
-## Your first test
-A Aiotest test is essentially just a Python program making requests to the system you want to test.  This makes it very flexible and particularly good at implementing complex user flows.  But it can do simple tests as well, so let’s start with that:
+# AioTest 快速入门指南
+
+欢迎来到 AioTest 快速入门指南！本指南将帮助您在5分钟内快速上手 AioTest 负载测试框架。
+
+## 📋 前置要求
+
+- Python 3.8 或更高版本
+- pip 包管理器
+- 基本的 Python 编程知识
+
+## 🚀 第一步：安装 AioTest
+
+### 从 PyPI 安装（推荐）
+
+```bash
+pip install aiotest
+```
+
+### 从源代码安装
+
+```bash
+git clone https://github.com/hewei198711/Aiotest.git
+cd aiotest
+pip install -r requirements.txt
+```
+
+## 🎯 第二步：创建第一个测试
+
+### 最简单的 HTTP 测试
+
+您可以直接使用我们提供的完整示例文件：
+
+**使用示例文件**：
+
+```bash
+python -m aiotest -f examples/basic.py
+```
+
+**示例文件内容**：
+
+`examples/basic.py` 包含了完整的测试示例，包括：
+- 多个测试方法（GET、POST、错误处理等）
+- 认证请求示例
+- 负载形状定义
+- 详细的文档和注释
+
+这是一个更加完整和实用的示例，适合作为入门参考。
+
+## 📊 第三步：添加负载控制
+
+### 自定义负载形状
+
 ```python
-from aiotest import AsyncHttpUser, LoadUserShape, logger
+from aiotest import HttpUser, LoadUserShape
 
-class TestUser(AsyncHttpUser):
-    host = "https://uat.taobao.com"
-    token = None
+class MyUser(HttpUser):
+    host = "https://httpbin.org"
+    wait_time = 1
+    
+    async def test_get(self):
+        async with self.client.get("/get") as resp:
+            assert resp.status == 200
 
+class MyLoadShape(LoadUserShape):
+    def tick(self):
+        """逐步增加用户数"""
+        run_time = self.get_run_time()
+        
+        if run_time < 30:
+            return (10, 2)   # 前30秒：10用户，每秒2个
+        elif run_time < 60:
+            return (20, 5)   # 30-60秒：20用户，每秒5个
+        else:
+            return None      # 60秒后停止
+```
+
+## 🌐 第四步：分布式测试
+
+### 启动 Master 节点
+
+```bash
+python -m aiotest -f my_first_test.py \
+    --master --expect-workers 2 \
+    --redis-path 127.0.0.1 --redis-port 6379
+```
+
+### 启动 Worker 节点
+
+```bash
+python -m aiotest -f my_first_test.py \
+    --worker \
+    --redis-path 127.0.0.1 --redis-port 6379
+```
+
+## 📈 第五步：监控测试
+
+### 启动 Prometheus 指标
+
+```bash
+python -m aiotest -f my_first_test.py --prometheus-port 8089
+```
+
+访问 http://localhost:8089 查看实时指标。
+
+### 使用 Grafana 可视化
+
+1. 安装 Grafana 和 Prometheus
+2. 配置 Prometheus 数据源
+3. 导入 AioTest 仪表板模板
+
+## 🎮 第六步：使用控制中心
+
+AioTest 提供了 Web 控制中心，方便管理测试：
+
+1. 启动测试后，访问控制中心界面
+2. 使用控制中心进行：
+   - 暂停/恢复测试/提前结束测试
+
+## 💡 常见使用场景
+
+### 场景1：API 性能测试
+
+```python
+from aiotest import HttpUser
+
+class ApiUser(HttpUser):
+    host = "https://api.example.com"
+    wait_time = (0.5, 2)  # 随机等待0.5-2秒
+    
+    async def test_list_users(self):
+        async with self.client.get("/users") as resp:
+            assert resp.status == 200
+    
+    async def test_create_user(self):
+        data = {"name": "Test User", "email": "test@example.com"}
+        async with self.client.post("/users", json=data) as resp:
+            assert resp.status == 201
+```
+
+### 场景2：高并发测试
+
+```python
+from aiotest import HttpUser, ExecutionMode, weight
+
+class HighConcurrencyUser(HttpUser):
+    host = "https://api.example.com"
+    execution_mode = ExecutionMode.CONCURRENT  # 并发执行
+    max_concurrent_tasks = 10  # 最大并发任务数
+    wait_time = 0.1  # 短等待时间
+    
+    @weight(5)  # 高权重任务
+    async def test_read_api(self):
+        async with self.client.get("/data") as resp:
+            assert resp.status == 200
+    
+    @weight(1)  # 低权重任务
+    async def test_write_api(self):
+        data = {"value": "test"}
+        async with self.client.post("/data", json=data) as resp:
+            assert resp.status == 200
+```
+
+### 场景3：数据库压力测试
+
+```python
+from aiotest import User
+import asyncio
+
+class DatabaseUser(User):
+    wait_time = 0.5
+    
     async def on_start(self):
-        url = "/login"
-        data = {"username": "admin", "password": "123456"}
-        async with self.session.post(url=url, data=data) as resp:
-            data = await resp.json()
-            self.token = data["token"]
-
-    async def test_search(self):
-        url = "/search"
-        hearders = {"Authorization": self.token}
-        data = {"keyword": "F22"}
-        async with self.session.post(url=url, hearders=hearders, json=data) as resp:
-            data = await resp.json()      
-
-    async def test_personal_info(self):
-        url = "/personalInfo"
-        async with self.session.get(url=url, hearders=hearders) as resp:
-            data = await resp.json()
-
+        """初始化数据库连接"""
+        import asyncpg
+        self.db = await asyncpg.connect("postgresql://user:pass@localhost/db")
+    
+    async def test_query(self):
+        """执行数据库查询"""
+        result = await self.db.fetch("SELECT * FROM users LIMIT 10")
+        assert len(result) > 0
+    
+    async def on_stop(self):
+        """关闭数据库连接"""
+        await self.db.close()
 ```
-This user will make HTTP requests to `/search`, and then `/personalInfo`, again and again. For a full explanation and a more realistic example see Writing a [aiotestfile](writing-a-aiotestfile.md).
 
-Change `/search` and `/personalInfo` to some actual paths on the web site/service you want to test, put the code in a file named `aiotestfile.py` in your current directory and then run `aiotest`:
-```console
-$ aiotst -f aiotestfile.py
-2023-09-26 11:19:35.337 | INFO     | aiotest.runners:start_users:130 - starting 1 users at the rate 1 users/s, (0 users already running)...
-2023-09-26 11:19:36.313 | INFO     | aiotest.runners:start_users:147 - All users started: TestVipUser:1
-2023-09-26 11:19:39.739 | INFO     | aiotest.runners:stop_users:167 - Stopping 1 users immediately
+## 🔧 进阶功能
+
+### 暂停和恢复测试
+
+```python
+# 在运行器中调用暂停/恢复
+await runner.pause()   # 暂停测试
+await runner.resume()  # 恢复测试
 ```
-### Aiotest’s prometheus interface
-open http://localhost:8089
-```console
-# HELP python_gc_objects_collected_total Objects collected during gc
-# TYPE python_gc_objects_collected_total counter
-python_gc_objects_collected_total{generation="0"} 1064.0
-python_gc_objects_collected_total{generation="1"} 542.0
-python_gc_objects_collected_total{generation="2"} 0.0
-# HELP python_gc_objects_uncollectable_total Uncollectable objects found during GC
-# TYPE python_gc_objects_uncollectable_total counter
-python_gc_objects_uncollectable_total{generation="0"} 0.0
-python_gc_objects_uncollectable_total{generation="1"} 0.0
-python_gc_objects_uncollectable_total{generation="2"} 0.0
-# HELP python_gc_collections_total Number of times this generation was collected
-# TYPE python_gc_collections_total counter
-python_gc_collections_total{generation="0"} 102.0
-python_gc_collections_total{generation="1"} 9.0
-python_gc_collections_total{generation="2"} 0.0
-# HELP python_info Python platform information
-# TYPE python_info gauge
-python_info{implementation="CPython",major="3",minor="11",patchlevel="3",version="3.11.3"} 1.0
-# HELP aiotest_workers_user_count aiotest workers user count
-# TYPE aiotest_workers_user_count gauge
-aiotest_workers_user_count{node="local"} 1.0
-# HELP aiotest_workers_cpu_usage aiotest workers cpu usage
-# TYPE aiotest_workers_cpu_usage gauge
-aiotest_workers_cpu_usage{node="Local"} 0.3
-# HELP aiotest_response_content_length aiotest response content length
-# TYPE aiotest_response_content_length gauge
-aiotest_response_content_length{code="200",method="POST",name="/login"} 1115.0
-aiotest_response_content_length{code="200",method="POST",name="/search"} 7836.0
-aiotest_response_content_length{code="200",method="GET",name="/personalInfo"} 401.0
-# HELP aiotest_response_failure_total aiotest response failure
-# TYPE aiotest_response_failure_total counter
-# HELP aiotest_user_error_total aiotest user error
-# TYPE aiotest_user_error_total counter
-# HELP aiotest_response_times aiotest response times
-# TYPE aiotest_response_times histogram
-aiotest_response_times_bucket{code="200",le="50.0",method="POST",name="/login"} 0.0
-aiotest_response_times_bucket{code="200",le="100.0",method="POST",name="/login"} 0.0
-aiotest_response_times_bucket{code="200",le="200.0",method="POST",name="/login"} 0.0
-aiotest_response_times_bucket{code="200",le="300.0",method="POST",name="/login"} 1.0
-aiotest_response_times_bucket{code="200",le="400.0",method="POST",name="/login"} 1.0
-aiotest_response_times_bucket{code="200",le="500.0",method="POST",name="/login"} 1.0
-aiotest_response_times_bucket{code="200",le="600.0",method="POST",name="/login"} 1.0
-aiotest_response_times_bucket{code="200",le="700.0",method="POST",name="/login"} 1.0
-aiotest_response_times_bucket{code="200",le="800.0",method="POST",name="/login"} 1.0
-aiotest_response_times_bucket{code="200",le="900.0",method="POST",name="/login"} 1.0
-aiotest_response_times_bucket{code="200",le="1000.0",method="POST",name="/login"} 1.0
-aiotest_response_times_bucket{code="200",le="2000.0",method="POST",name="/login"} 1.0
-aiotest_response_times_bucket{code="200",le="5000.0",method="POST",name="/login"} 1.0
-aiotest_response_times_bucket{code="200",le="8000.0",method="POST",name="/login"} 1.0
-aiotest_response_times_bucket{code="200",le="+Inf",method="POST",name="/login"} 1.0
-aiotest_response_times_count{code="200",method="POST",name="/login"} 1.0
-aiotest_response_times_sum{code="200",method="POST",name="/login"} 277.0
-aiotest_response_times_bucket{code="200",le="50.0",method="POST",name="/search"} 2.0
-aiotest_response_times_bucket{code="200",le="100.0",method="POST",name="/search"} 2.0
-aiotest_response_times_bucket{code="200",le="200.0",method="POST",name="/search"} 2.0
-aiotest_response_times_bucket{code="200",le="300.0",method="POST",name="/search"} 2.0
-aiotest_response_times_bucket{code="200",le="400.0",method="POST",name="/search"} 2.0
-aiotest_response_times_bucket{code="200",le="500.0",method="POST",name="/search"} 2.0
-aiotest_response_times_bucket{code="200",le="600.0",method="POST",name="/search"} 2.0
-aiotest_response_times_bucket{code="200",le="700.0",method="POST",name="/search"} 2.0
-aiotest_response_times_bucket{code="200",le="800.0",method="POST",name="/search"} 2.0
-aiotest_response_times_bucket{code="200",le="900.0",method="POST",name="/search"} 2.0
-aiotest_response_times_bucket{code="200",le="1000.0",method="POST",name="/search"} 2.0
-aiotest_response_times_bucket{code="200",le="2000.0",method="POST",name="/search"} 2.0
-aiotest_response_times_bucket{code="200",le="5000.0",method="POST",name="/search"} 2.0
-aiotest_response_times_bucket{code="200",le="8000.0",method="POST",name="/search"} 2.0
-aiotest_response_times_bucket{code="200",le="+Inf",method="POST",name="/search"} 2.0
-aiotest_response_times_count{code="200",method="POST",name="/search"} 2.0
-aiotest_response_times_sum{code="200",method="POST",name="/search"} 79.0
-aiotest_response_times_bucket{code="200",le="50.0",method="GET",name="/personalInfo"} 2.0
-aiotest_response_times_bucket{code="200",le="100.0",method="GET",name="/personalInfo"} 2.0
-aiotest_response_times_bucket{code="200",le="200.0",method="GET",name="/personalInfo"} 2.0
-aiotest_response_times_bucket{code="200",le="300.0",method="GET",name="/personalInfo"} 2.0
-aiotest_response_times_bucket{code="200",le="400.0",method="GET",name="/personalInfo"} 2.0
-aiotest_response_times_bucket{code="200",le="500.0",method="GET",name="/personalInfo"} 2.0
-aiotest_response_times_bucket{code="200",le="600.0",method="GET",name="/personalInfo"} 2.0
-aiotest_response_times_bucket{code="200",le="700.0",method="GET",name="/personalInfo"} 2.0
-aiotest_response_times_bucket{code="200",le="800.0",method="GET",name="/personalInfo"} 2.0
-aiotest_response_times_bucket{code="200",le="900.0",method="GET",name="/personalInfo"} 2.0
-aiotest_response_times_bucket{code="200",le="1000.0",method="GET",name="/personalInfo"} 2.0
-aiotest_response_times_bucket{code="200",le="2000.0",method="GET",name="/personalInfo"} 2.0
-aiotest_response_times_bucket{code="200",le="5000.0",method="GET",name="/personalInfo"} 2.0
-aiotest_response_times_bucket{code="200",le="8000.0",method="GET",name="/personalInfo"} 2.0
-aiotest_response_times_bucket{code="200",le="+Inf",method="GET",name="/personalInfo"} 2.0
-aiotest_response_times_count{code="200",method="GET",name="/personalInfo"} 2.0
-aiotest_response_times_sum{code="200",method="GET",name="/personalInfo"} 63.0
+
+### 自定义事件处理
+
+```python
+from aiotest import request_metrics
+
+@request_metrics.handler(priority=0)
+async def custom_handler(**kwargs):
+    metrics = kwargs.get('metrics')
+    if metrics:
+        print(f"请求: {metrics.method} {metrics.endpoint} - {metrics.duration:.0f}ms")
 ```
-### Aiotest’s grafana interface
-open http://localhost:3000
-![grafana](images/grafana01.png)
-![grafana](images/grafana02.png)
 
-### More options
-To run Aiotest distributed across multiple Python processes or machines, you start a single Aiotest master process
-with the `--master` command line parameter, and then any number of Aiotest worker processes using the `--worker`
-command line parameter. See [Distributed load test](running-distributed.md) for more info.
+### 分布式锁
 
-To see all available options type: `aiotest --help`.
+```python
+from aiotest import redis_client, RedisLock
 
-### Next steps
-Now, let's have a more in-depth look at aiotestfiles and what they can do: [Writing a aiotestfile](writing-a-aiotestfile.md).
+async def test_with_lock(self):
+    async with await RedisLock.with_lock(redis_client, "my_lock", timeout=10) as lock:
+        if lock.locked:
+            # 执行需要互斥的操作
+            pass
+```
+
+## 📚 下一步
+
+恭喜您完成了快速入门！接下来您可以：
+
+1. 📖 阅读 [完整文档](README.md)
+2. 💡 查看 [最佳实践](BEST_PRACTICES.md)
+3. 🎯 探索 [示例代码](../examples/)
+4. ❓ 查看 [常见问题](FAQ.md)
+5. 🏗️ 了解 [架构设计](ARCHITECTURE.md)
+
+## 🆘 遇到问题？
+
+- 查看 [常见问题](FAQ.md)
+- 提交 [GitHub Issue](https://github.com/hewei198711/Aiotest/issues)
+- 加入社区讨论
+
+---
+
+**提示**: 本指南涵盖了 AioTest 的核心功能，更多高级功能请参考完整文档。

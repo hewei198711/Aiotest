@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AioTest 测试控制</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f7fa;
+            color: #333;
+            line-height: 1.6;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem 0;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+        
+        .subtitle {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+        
+        main {
+            flex: 1;
+            max-width: 800px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+        }
+        
+        .control-panel {
+            background: white;
+            border-radius: 10px;
+            padding: 2rem;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            margin-bottom: 2rem;
+        }
+        
+        #status {
+            background-color: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 1.5rem;
+            border-radius: 4px;
+            margin-bottom: 2rem;
+            font-size: 1.1rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+        
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+        
+        button {
+            padding: 12px 24px;
+            font-size: 1rem;
+            font-weight: 500;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            min-width: 120px;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        .btn-pause {
+            background-color: #ff9800;
+            color: white;
+        }
+        
+        .btn-pause:hover {
+            background-color: #f57c00;
+        }
+        
+        .btn-resume {
+            background-color: #4caf50;
+            color: white;
+        }
+        
+        .btn-resume:hover {
+            background-color: #388e3c;
+        }
+        
+        .btn-quit {
+            background-color: #f44336;
+            color: white;
+        }
+        
+        .btn-quit:hover {
+            background-color: #d32f2f;
+        }
+        
+        .info-section {
+            background: white;
+            border-radius: 10px;
+            padding: 2rem;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        }
+        
+        h2 {
+            color: #667eea;
+            margin-bottom: 1rem;
+            font-size: 1.5rem;
+        }
+        
+        ul {
+            list-style-type: none;
+            margin-left: 1rem;
+        }
+        
+        li {
+            margin-bottom: 0.5rem;
+            position: relative;
+        }
+        
+        li::before {
+            content: "•";
+            color: #667eea;
+            font-weight: bold;
+            display: inline-block;
+            width: 1em;
+            margin-left: -1em;
+        }
+        
+        footer {
+            background-color: #333;
+            color: white;
+            text-align: center;
+            padding: 1.5rem 0;
+            margin-top: 2rem;
+        }
+        
+        .footer-content {
+            max-width: 800px;
+            margin: 0 auto;
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+        
+        @media (max-width: 600px) {
+            h1 {
+                font-size: 2rem;
+            }
+            
+            .control-panel,
+            .info-section {
+                padding: 1.5rem;
+            }
+            
+            .controls {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            button {
+                width: 100%;
+                max-width: 200px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>AioTest 测试控制中心</h1>
+        <p class="subtitle">实时监控和控制您的负载测试</p>
+    </header>
+    
+    <main>
+        <div class="control-panel">
+            <div id="status">状态: 加载中...</div>
+            <div class="controls">
+                <button class="btn-pause" onclick="control('pause')">暂停测试</button>
+                <button class="btn-resume" onclick="control('resume')">重新开始</button>
+                <button class="btn-quit" onclick="control('quit')">结束测试</button>
+            </div>
+        </div>
+        
+        <div class="info-section">
+            <h2>操作说明</h2>
+            <ul>
+                <li><strong>暂停测试</strong>: 暂时停止测试执行，保留当前状态</li>
+                <li><strong>重新开始</strong>: 从暂停状态恢复测试执行</li>
+                <li><strong>结束测试</strong>: 完全停止测试并清理资源</li>
+            </ul>
+            <h2>监控信息</h2>
+            <p>你可以通过 Prometheus.Grafana 查看详细的性能指标。</p>
+        </div>
+    </main>
+    
+    <footer>
+        <div class="footer-content">
+            <p>&copy; 2026 AioTest. 轻量级异步负载测试框架</p>
+        </div>
+    </footer>
+    
+    <script>
+        async function control(action) {
+            try {
+                const response = await fetch(`/control/${action}`);
+                const result = await response.text();
+                document.getElementById('status').textContent = `状态: ${result}`;
+                
+                // 添加状态变化动画
+                const statusElement = document.getElementById('status');
+                statusElement.style.backgroundColor = '#e3f2fd';
+                setTimeout(() => {
+                    statusElement.style.backgroundColor = '#f8f9fa';
+                }, 1000);
+            } catch (error) {
+                console.error('控制请求失败:', error);
+                document.getElementById('status').textContent = `状态: 操作失败`;
+            }
+        }
+        
+        async function updateStatus() {
+            // 这里可以添加状态更新逻辑，例如从服务器获取当前状态
+            setTimeout(updateStatus, 2000);
+        }
+        
+        // 页面加载完成后更新状态
+        window.onload = function() {
+            updateStatus();
+        };
+    </script>
+</body>
+</html>

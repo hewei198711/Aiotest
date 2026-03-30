@@ -17,7 +17,7 @@ from aiotest.logger import logger
 from aiotest.shape import LoadUserShape
 from aiotest.users import User
 
-version = "1.0.0"
+version = "1.0.3"
 
 
 def parse_options(args=None):

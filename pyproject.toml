@@ -2,6 +2,9 @@
 name = "aiotest"
 version = "1.0.0"
 description = "基于 asyncio 的高性能负载测试框架"
+readme = "README.md"
+long_description = "# AioTest - 异步负载测试框架\n\nAioTest是一个基于asyncio的高性能负载测试框架，专为大规模并发测试而设计。它提供了丰富的功能集，包括分布式测试、实时监控、灵活的用户行为模拟和完善的指标收集系统。\n\n## 核心特性\n\n- 🚀 **高性能**: 基于 asyncio 实现真正的异步并发\n- 🌐 **分布式**: 原生支持 Master-Worker 分布式架构\n- 📊 **监控完善**: 集成 Prometheus 指标和详细日志\n- 🔧 **易用性**: 简洁直观的 API 设计，学习成本低\n- 🎯 **灵活控制**: 可自定义负载形状和测试策略\n- 🔒 **生产就绪**: 完善的错误处理和资源管理"
+long_description_content_type = "text/markdown"
 authors = [
     { name = "hewei", email = "hewei1987@163.com" },
 ]
@@ -13,6 +16,26 @@ dependencies = [
     "psutil>=5.9.0",
 ]
 requires-python = ">=3.9"
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "Topic :: Software Development :: Testing",
+    "Topic :: System :: Distributed Computing",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Operating System :: OS Independent",
+]
+keywords = [
+    "load testing",
+    "performance testing",
+    "asyncio",
+    "stress testing",
+    "distributed testing",
+]
 
 [project.scripts]
 aiotest = "aiotest.main:main"

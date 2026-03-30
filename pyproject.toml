@@ -1,6 +1,6 @@
 [project]
 name = "aiotest"
-version = "1.0.0"
+version = "1.0.1"
 description = "基于 asyncio 的高性能负载测试框架"
 readme = "README.md"
 authors = [

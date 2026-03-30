@@ -36,7 +36,7 @@ keywords = [
 ]
 
 [project.scripts]
-aiotest = "aiotest.main:main"
+aiotest = "aiotest.__main__:main"
 
 [build-system]
 requires = ["setuptools>=61.0"]

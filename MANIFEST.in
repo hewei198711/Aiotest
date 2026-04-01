@@ -1,0 +1,8 @@
+include aiotest/static/*
+include aiotest/static/**/*.html
+include aiotest/static/**/*.css
+include aiotest/static/**/*.js
+include README.md
+include LICENSE
+include requirements.txt
+recursive-include aiotest *.py

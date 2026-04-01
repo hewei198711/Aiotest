@@ -18,7 +18,7 @@ AioTest 波浪式加载形状示例
        0    7.5   15   22.5   30   37.5
 
 运行方式:
-    py -m aiotest -f examples/load_shape/wave_load_shape.py --loglevel DEBUG
+    aiotest -f examples/load_shape/wave_load_shape.py --loglevel DEBUG
 
 运行时间: 120 秒
 """

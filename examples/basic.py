@@ -6,10 +6,10 @@ AioTest 基础示例文件
 这是一个简单的 aiotest 使用示例，展示如何进行 HTTP 负载测试。
 
 运行方式:
-    py -m aiotest -f examples/basic.py
+    aiotest -f examples/basic.py
 
 使用 DEBUG 日志级别查看详细信息:
-    py -m aiotest -f examples/basic.py --loglevel DEBUG
+    aiotest -f examples/basic.py --loglevel DEBUG
 
 访问 Prometheus 监控:
     测试运行时访问 http://localhost:8089 查看性能指标

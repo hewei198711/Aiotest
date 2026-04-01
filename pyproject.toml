@@ -1,6 +1,6 @@
 [project]
 name = "aiotest"
-version = "1.0.3"
+version = "1.0.4"
 description = "基于 asyncio 的高性能负载测试框架"
 readme = "README.md"
 authors = [
@@ -44,6 +44,7 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
 packages = ["aiotest"]
+include-package-data = true
 
 [tool.isort]
 profile = "black"

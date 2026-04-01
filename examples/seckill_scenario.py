@@ -10,18 +10,18 @@ AioTest 秒杀场景测试示例
     # 请先确保 Redis 服务已启动，并且配置信息正确
 
     # local模式
-    py -m aiotest -f examples/seckill_scenario.py --loglevel DEBUG
+    aiotest -f examples/seckill_scenario.py --loglevel DEBUG
 
     # 分布式模式
     # 启动 Master 节点
-    py -m aiotest -f examples/seckill_scenario.py \
+    aiotest -f examples/seckill_scenario.py \
         --master --expect-workers 2 \
-        --redis-path 172.16.40.25 --redis-port 6379 --redis-password test123456
+        --redis-path 172.16.40.24 --redis-port 6379 --redis-password test123456
 
     # 启动 Worker 节点（在两个不同的终端）
-    py -m aiotest -f examples/seckill_scenario.py \
+    aiotest -f examples/seckill_scenario.py \
         --worker \
-        --redis-path 172.16.40.25 --redis-port 6379 --redis-password test123456
+        --redis-path 172.16.40.24 --redis-port 6379 --redis-password test123456
 
 功能说明:
     - 使用 Redis 存储用户信息

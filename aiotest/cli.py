@@ -17,7 +17,7 @@ from aiotest.logger import logger
 from aiotest.shape import LoadUserShape
 from aiotest.users import User
 
-version = "1.0.3"
+version = "1.0.4"
 
 
 def parse_options(args=None):
@@ -115,12 +115,6 @@ def parse_options(args=None):
         type=int,
         default=1,
         help="主节点在开始测试前期望连接的工作节点数量"
-    )
-
-    group_distributed.add_argument(
-        '--master-host',
-        default="127.0.0.1",
-        help="分布式负载测试中aiotest主节点的主机或IP地址。仅在使用--worker运行时使用。默认为127.0.0.1。"
     )
 
     # loglevel logfile

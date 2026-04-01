@@ -6,10 +6,10 @@ AioTest 事件系统示例文件
 演示如何使用 aiotest 的事件系统来监听和处理测试生命周期中的各种事件。
 
 运行方式:
-    py -m aiotest -f examples/events_example.py
+    aiotest -f examples/events_example.py
 
 使用 DEBUG 日志级别查看详细信息:
-    py -m aiotest -f examples/events_example.py --loglevel DEBUG
+    aiotest -f examples/events_example.py --loglevel DEBUG
 
 访问 Prometheus 监控:
     测试运行时访问 http://localhost:8089 查看性能指标

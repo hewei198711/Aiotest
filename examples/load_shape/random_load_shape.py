@@ -6,7 +6,7 @@ AioTest 随机加载形状示例
 这个示例展示了如何实现随机加载形状，适合测试系统在不稳定负载下的性能表现
 
 运行方式:
-    py -m aiotest -f examples/load_shape/random_load_shape.py --loglevel DEBUG
+    aiotest -f examples/load_shape/random_load_shape.py --loglevel DEBUG
 
 运行时间: 120 秒
 """

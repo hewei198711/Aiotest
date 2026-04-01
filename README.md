@@ -67,10 +67,10 @@ pip install -r requirements.txt
 
 ```bash
 # 运行基础示例
-py -m aiotest -f examples/basic.py
+aiotest -f examples/basic.py
 
 # 运行带 DEBUG 日志级别的示例
-py -m aiotest -f examples/basic.py --loglevel DEBUG
+aiotest -f examples/basic.py --loglevel DEBUG
 
 # 启动 Prometheus 指标服务器（端口 8089）
 # http://localhost:8089
@@ -199,7 +199,7 @@ Aiotest 原生支持 Master-Worker 分布式架构，可以在多台机器上协
 python examples/prepare_user_data.py
 
 # 启动 Master 节点
-py -m aiotest -f examples/distributed_example.py \
+aiotest -f examples/distributed_example.py \
     --master --expect-workers 2 \
     --redis-path 127.0.0.1 --redis-port 6379 --redis-password "123456"
 ```
@@ -208,7 +208,7 @@ py -m aiotest -f examples/distributed_example.py \
 
 ```bash
 # 在不同的机器上启动多个 Worker 节点
-py -m aiotest -f examples/distributed_example.py \
+aiotest -f examples/distributed_example.py \
     --worker \
     --redis-path 127.0.0.1 --redis-port 6379 --redis-password "123456"
 ```
@@ -390,16 +390,15 @@ class TestUser(HttpUser):
 
 ```bash
 # 基础运行
-py -m aiotest -f test.py                    # 指定测试文件
-py -m aiotest -H https://api.example.com    # 指定目标主机
-py -m aiotest --loglevel DEBUG              # 设置日志级别
-py -m aiotest --logfile test.log            # 设置日志文件
+aiotest -f test.py                    # 指定测试文件
+aiotest -H https://api.example.com    # 指定目标主机
+aiotest --loglevel DEBUG              # 设置日志级别
+aiotest --logfile test.log            # 设置日志文件
 
 # 分布式参数
 --master                              # 启动 Master 节点
 --worker                              # 启动 Worker 节点
 --expect-workers 3                    # Master 节点期望的 Worker 数量
---master-host 192.168.1.100           # Master 节点主机地址
 
 # Redis配置
 --redis-path 127.0.0.1               # Redis 主机地址

@@ -6,10 +6,10 @@ AioTest 并发执行模式示例文件
 演示如何使用并发执行模式进行 HTTP 负载测试，以及如何使用 name 参数自定义请求名称。
 
 运行方式:
-    py -m aiotest -f examples/concurrent_example.py
+    aiotest -f examples/concurrent_example.py
 
 使用 DEBUG 日志级别查看详细信息:
-    py -m aiotest -f examples/concurrent_example.py --loglevel DEBUG
+    aiotest -f examples/concurrent_example.py --loglevel DEBUG
 
 访问 Prometheus 监控:
     测试运行时访问 http://localhost:8089 查看性能指标

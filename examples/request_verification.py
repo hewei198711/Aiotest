@@ -13,7 +13,7 @@ AioTest 请求成功/失败判定示例
 - 断言结果标签
 
 运行方式:
-    py -m aiotest -f examples/request_verification.py --loglevel DEBUG
+    aiotest -f examples/request_verification.py --loglevel DEBUG
 
 判断请求成功/失败的推荐方式:
     # 统计所有失败的请求

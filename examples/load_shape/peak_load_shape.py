@@ -16,7 +16,7 @@ AioTest 峰值式加载形状示例
        0    15   30   45   60   75   90
 
 运行方式:
-    py -m aiotest -f examples/load_shape/peak_load_shape.py --loglevel DEBUG
+    aiotest -f examples/load_shape/peak_load_shape.py --loglevel DEBUG
 
 运行时间: 180 秒
 """

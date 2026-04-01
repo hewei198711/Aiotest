@@ -31,7 +31,6 @@ class TestParseOptions:
         assert options.master is False
         assert options.worker is False
         assert options.expect_workers == 1
-        assert options.master_host == "127.0.0.1"
         assert options.loglevel == "INFO"
         assert options.logfile is None
         assert options.prometheus_port == 8089

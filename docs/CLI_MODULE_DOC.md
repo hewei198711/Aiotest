@@ -176,7 +176,6 @@
 | `master` | `bool` | `False` | 以主节点模式运行 | 分布式模式 |
 | `worker` | `bool` | `False` | 以工作节点模式运行 | 分布式模式 |
 | `expect_workers` | `int` | `1` | 期望连接的工作节点数 | 主节点模式 |
-| `master_host` | `str` | `127.0.0.1` | 主节点主机地址 | 工作节点模式 |
 | `loglevel` | `str` | `INFO` | 日志级别 | 所有模式 |
 | `logfile` | `str` | `None` | 日志文件路径 | 所有模式 |
 | `prometheus-port` | `int` | `8089` | Prometheus指标服务器端口 | 所有模式 |
@@ -214,7 +213,7 @@ aiotest --master --expect-workers 2
 **工作节点**：
 ```bash
 # 启动工作节点，连接到主节点
-aiotest --worker --master-host 127.0.0.1
+aiotest --worker
 ```
 
 ### 自定义Redis配置

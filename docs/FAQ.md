@@ -79,7 +79,7 @@ sudo apt-get install python3.8  # Ubuntu
 **解决方案**:
 ```bash
 # 命令行参数
-py -m aiotest -f test.py \
+aiotest -f test.py \
     --redis-path 127.0.0.1 \
     --redis-port 6379 \
     --redis-password "your_password"
@@ -119,7 +119,7 @@ async def test_with_redis():
 **解决方案**:
 ```bash
 # 使用 --prometheus-port 参数
-py -m aiotest -f test.py --prometheus-port 9090
+aiotest -f test.py --prometheus-port 9090
 ```
 
 访问 http://localhost:9090/metrics 查看指标。
@@ -131,7 +131,7 @@ py -m aiotest -f test.py --prometheus-port 9090
 **解决方案**:
 ```bash
 # 使用 --loglevel 参数
-py -m aiotest -f test.py --loglevel DEBUG
+aiotest -f test.py --loglevel DEBUG
 ```
 
 支持的日志级别：
@@ -162,7 +162,7 @@ lsof -i :8089
 2. 终止进程或更换端口：
 ```bash
 # 更换 Prometheus 端口
-py -m aiotest -f test.py --prometheus-port 9090
+aiotest -f test.py --prometheus-port 9090
 ```
 
 ### Q8: 用户任务不执行
@@ -436,7 +436,7 @@ curl http://localhost:8089/metrics
 1. 调整日志级别：
 ```bash
 # 使用 WARNING 或 ERROR 级别减少日志量
-py -m aiotest -f test.py --loglevel WARNING
+aiotest -f test.py --loglevel WARNING
 ```
 
 

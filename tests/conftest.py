@@ -15,7 +15,7 @@ from aiotest import HTTPClient, HttpUser, LoadUserShape, User
 # ============================================
 
 # Redis 连接配置
-REDIS_HOST = "172.16.40.25"
+REDIS_HOST = "172.16.40.24"
 REDIS_PORT = 6379
 REDIS_PASSWORD = "test123456"
 
@@ -256,7 +256,6 @@ def mock_config():
             self.master = False
             self.worker = False
             self.expect_workers = 1
-            self.master_host = "127.0.0.1"
             self.host = ""
             self.aiotestfile = "aiotestfile"
             self.show_users_wight = False

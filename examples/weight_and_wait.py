@@ -6,11 +6,11 @@ AioTest 权重和等待时间示例文件
 演示如何使用权重和不同类型的 wait_time 配置进行负载测试。
 
 运行方式:
-    py -m aiotest -f examples/weight_and_wait.py
-    py -m aiotest -f examples/weight_and_wait.py --show-users-wight
+    aiotest -f examples/weight_and_wait.py
+    aiotest -f examples/weight_and_wait.py --show-users-wight
 
 使用 DEBUG 日志级别查看详细信息:
-    py -m aiotest -f examples/weight_and_wait.py --loglevel DEBUG
+    aiotest -f examples/weight_and_wait.py --loglevel DEBUG
 
 访问 Prometheus 监控:
     测试运行时访问 http://localhost:8089 查看性能指标

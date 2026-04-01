@@ -91,7 +91,7 @@ await test_start.add_handler(my_handler, priority=0)
 ### 运行示例
 
 ```bash
-py -m aiotest -f examples/events_example.py
+aiotest -f examples/events_example.py
 ```
 
 ---

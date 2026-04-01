@@ -11,17 +11,17 @@ AioTest 分布式测试示例文件
     # 请先确保 Redis 服务已启动，并且配置信息正确
 
     # 启动 Master 节点
-    py -m aiotest -f examples/distributed_example.py \
+    aiotest -f examples/distributed_example.py \
         --master --expect-workers 2 \
-        --redis-path 172.16.40.25 --redis-port 6379 --redis-password test123456
+        --redis-path 172.16.40.24 --redis-port 6379 --redis-password test123456
 
     # 启动 Worker 节点（在两个不同的终端）
-    py -m aiotest -f examples/distributed_example.py \
+    aiotest -f examples/distributed_example.py \
         --worker \
-        --redis-path 172.16.40.25 --redis-port 6379 --redis-password test123456
+        --redis-path 172.16.40.24 --redis-port 6379 --redis-password test123456
 
 使用 DEBUG 日志级别查看详细信息:
-    py -m aiotest -f examples/distributed_example.py --loglevel DEBUG
+    aiotest -f examples/distributed_example.py --loglevel DEBUG
 
 功能说明:
     - 使用 Redis 存储用户信息

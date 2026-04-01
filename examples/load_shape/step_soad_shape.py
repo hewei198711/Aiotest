@@ -19,7 +19,7 @@ AioTest 阶梯式加载形状示例
        0    30   60   90  120
 
 运行方式:
-    py -m aiotest -f examples/load_shape/step_soad_shape.py --loglevel DEBUG
+    aiotest -f examples/load_shape/step_soad_shape.py --loglevel DEBUG
 
 运行时间: 120 秒
 """

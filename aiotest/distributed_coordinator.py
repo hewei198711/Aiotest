@@ -393,9 +393,13 @@ class DistributedCoordinator:
 
         elif channel_type == "heartbeat":
             # 发送心跳数据（存储到Redis hash，不是发布）
+            # 使用 Redis 的 TIME 命令获取时间戳，确保 Master 和 Worker 的时间一致
+            redis_time = await self.redis.time()
+            timestamp = int(redis_time[0]) + redis_time[1] / 1_000_000  # 秒 + 微秒
+
             heartbeat_data = {
                 **data,
-                "timestamp": int(data.get('timestamp', asyncio.get_event_loop().time()))
+                "timestamp": timestamp
             }
 
             # 将心跳数据存储到Redis，设置过期时间
@@ -423,7 +427,10 @@ class DistributedCoordinator:
             return False
 
         try:
-            current_time = asyncio.get_event_loop().time()
+            # 使用 Redis 服务器时间进行比较，避免跨进程事件循环时间不一致的问题
+            redis_time = await self.redis.time()
+            current_time = redis_time[0] + redis_time[1] / 1_000_000  # 秒 + 微秒
+
             last_heartbeat = float(heartbeat_data.get("timestamp", 0))
             return (current_time - last_heartbeat) <= HEARTBEAT_INTERVAL * \
                 HEARTBEAT_LIVENESS

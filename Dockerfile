@@ -1,5 +1,4 @@
 # AioTest Dockerfile
-# 使用多阶段构建减少最终镜像大小
 
 # 第一阶段：构建环境
 FROM python:3.12-slim AS builder
@@ -9,16 +8,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     && rm -rf /var/lib/apt/lists/*  # 清理apt缓存，减少镜像大小
 
-# 创建虚拟环境
+# 创建虚拟环境, 并设置虚拟环境路径
 RUN python -m venv /opt/venv
-
-# 设置虚拟环境路径
 ENV PATH="/opt/venv/bin:$PATH"
 
-# 复制运行时依赖文件
+# 复制运行时依赖文件,升级pip并安装依赖
 COPY requirements.txt /build/requirements.txt
-
-# 升级pip并安装依赖
 RUN python3 -m pip install --no-cache-dir -U pip && \
     pip install --no-cache-dir -r /build/requirements.txt  # --no-cache-dir 减少镜像大小
 
@@ -28,13 +23,12 @@ FROM python:3.12-slim
 # 安装运行时依赖
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
-    && rm -rf /var/lib/apt/lists/*  # 清理apt缓存
+    && rm -rf /var/lib/apt/lists/*
 
 # 从构建阶段复制虚拟环境
 COPY --from=builder /opt/venv /opt/venv
 
-# 设置环境变量
-# 加入虚拟环境路径
+# 设置环境变量,加入虚拟环境路径
 ENV PATH="/opt/venv/bin:$PATH"
 # 禁用Python缓冲，确保日志实时输出
 ENV PYTHONUNBUFFERED=1
@@ -56,8 +50,4 @@ COPY . /app
 
 # 暴露 Prometheus指标，Web控制界面端口
 EXPOSE 8089
-
-# 健康检查
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8089/ || exit 1
 

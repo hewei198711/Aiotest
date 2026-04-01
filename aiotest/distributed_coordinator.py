@@ -12,7 +12,7 @@ from aiotest.logger import logger
 
 # 心跳相关常量
 HEARTBEAT_INTERVAL = 1.0  # 心跳监控时间间隔(秒)
-HEARTBEAT_LIVENESS = 3    # 心跳存活检查次数
+HEARTBEAT_LIVENESS = 5    # 心跳存活检查次数
 
 # 批量传输相关常量
 MAX_BATCH_SIZE = 1000     # 最大批量大小，防止消息过大

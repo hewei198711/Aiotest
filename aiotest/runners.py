@@ -446,6 +446,20 @@ class WorkerRunner(BaseRunner):
 
         # Worker节点初始化完成
         logger.info("Worker运行器已初始化，ID: %s", self.client_id)
+        
+        # 立即发送一次初始心跳，让 Master 快速发现
+        try:
+            initial_heartbeat = {
+                "cpu_percent": 0,
+                "active_users": 0,
+                "status": str(self.state_manager.get_current_state()),
+                "worker_id": self.client_id,
+                "machine_id": self.machine_id
+            }
+            await self.coordinator.publish("heartbeat", initial_heartbeat)
+            logger.debug("已发送初始心跳")
+        except Exception as e:
+            logger.warning("发送初始心跳失败：%s", e)
 
     async def stop(self) -> None:
         """工作节点停止测试"""

@@ -32,7 +32,7 @@ import time
 from aiotest import HTTPClient, RedisConnection, logger
 
 # Redis 连接配置
-REDIS_PATH = "172.16.40.24"
+REDIS_PATH = "122.16.40.24"
 REDIS_PORT = 6379
 REDIS_PASSWORD = "test123456"
 

@@ -217,6 +217,7 @@ class EventsLoadShape(LoadUserShape):
 事件系统使用说明（装饰器模式）：
 
 1. 事件类型：
+
    - init_events: 初始化时触发
    - test_start: 测试开始时触发
    - test_stop: 测试停止时触发
@@ -241,6 +242,7 @@ class EventsLoadShape(LoadUserShape):
    await test_start.add_handler(my_handler, priority=0)
 
 4. 优先级：
+
    - 数值越大，优先级越高
    - 默认优先级为 0
    - 高优先级处理器先执行
@@ -251,6 +253,7 @@ class EventsLoadShape(LoadUserShape):
        pass
 
 6. request_metrics 事件参数：
+
    - request_id: 请求ID
    - method: HTTP方法
    - endpoint: 请求端点
@@ -258,6 +261,7 @@ class EventsLoadShape(LoadUserShape):
    - duration: 请求耗时（毫秒）
 
 7. 装饰器模式优势：
+
    - 代码更简洁，注册逻辑与处理器定义在一起
    - 统一通过事件钩子对象注册，接口一致
    - 自动管理事件处理器注册

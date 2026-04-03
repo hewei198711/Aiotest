@@ -25,15 +25,13 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
-  "id": 0,
   "links": [],
   "panels": [
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "ef9ih0gtiiubke"
+        "uid": "Prometheus"
       },
-      "description": "",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -92,7 +90,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "12.3.0",
+      "pluginVersion": "12.4.2",
       "targets": [
         {
           "datasource": {
@@ -101,7 +99,7 @@
           },
           "editorMode": "code",
           "exemplar": true,
-          "expr": "count(aiotest_worker_cpu_percent) by (machine_id)",
+          "expr": "count(aiotest_worker_cpu_percent)",
           "interval": "",
           "legendFormat": "__auto",
           "range": true,
@@ -114,9 +112,8 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "ef9ih0gtiiubke"
+        "uid": "Prometheus"
       },
-      "description": "",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -175,7 +172,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "12.3.0",
+      "pluginVersion": "12.4.2",
       "targets": [
         {
           "datasource": {
@@ -199,7 +196,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "ef9ih0gtiiubke"
+        "uid": "Prometheus"
       },
       "fieldConfig": {
         "defaults": {
@@ -260,7 +257,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "12.3.0",
+      "pluginVersion": "12.4.2",
       "targets": [
         {
           "datasource": {
@@ -282,7 +279,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "ef9ih0gtiiubke"
+        "uid": "Prometheus"
       },
       "description": "# 按机器分组的 CPU 使用率\n\n## 指标含义\n- **含义**：各机器的 CPU 使用率\n- **单位**：百分比 (%)\n\n## 监控价值\n- **机器负载**：直接反映各机器的负载情况\n- **资源分配**：帮助识别资源使用不均的情况\n- **故障定位**：当出现性能问题时，可快速定位到问题机器",
       "fieldConfig": {
@@ -351,7 +348,7 @@
           }
         ]
       },
-      "pluginVersion": "12.3.0",
+      "pluginVersion": "12.4.2",
       "targets": [
         {
           "datasource": {
@@ -427,7 +424,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "ef9ih0gtiiubke"
+        "uid": "Prometheus"
       },
       "description": "# 系统整体平均响应时间 (5分钟窗口)\n\n## 指标含义\n- **含义**：所有接口在最近 5 分钟内的整体平均响应时间\n- **单位**：秒 (s)\n\n## 监控价值\n- **系统健康度**：直接反映系统的整体性能状况\n- **用户体验**：响应时间是影响用户体验的关键指标\n- **性能基线**：建立系统正常运行时的响应时间基线\n- **容量规划**：基于响应时间和请求速率的关系进行容量预测\n- **性能优化**：识别系统性能瓶颈的重要依据\n\n## 数据来源\n- **指标类型**：Prometheus Counter 指标\n- **数据采集**：系统自动记录每个 HTTP 请求的响应时间和次数\n- **计算窗口**：5 分钟滚动窗口，平衡实时性和稳定性\n\n## 最佳实践\n- **与请求速率关联**：在同一仪表板中显示平均响应时间和请求速率，分析负载与性能的关系\n- **设置基准线**：建立正常业务流量下的响应时间基线，识别异常波动\n- **多维度分析**：结合接口、方法等维度，深入分析系统性能特征\n- **定期优化**：基于历史数据，识别性能下降趋势，及时进行优化",
       "fieldConfig": {
@@ -544,7 +541,7 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "12.3.0",
+      "pluginVersion": "12.4.2",
       "targets": [
         {
           "datasource": {
@@ -563,13 +560,12 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "ef9ih0gtiiubke"
+            "uid": "Prometheus"
           },
           "editorMode": "code",
           "exemplar": true,
           "expr": "sum(rate(aiotest_http_requests_total[5m]))",
           "format": "time_series",
-          "hide": false,
           "instant": false,
           "interval": "",
           "legendFormat": "请求 RPS",
@@ -583,7 +579,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "ef9ih0gtiiubke"
+        "uid": "Prometheus"
       },
       "description": "# 系统整体平均响应大小 (5分钟窗口)\n\n## 指标含义\n- **含义**：所有接口在最近 5 分钟内的整体平均响应大小\n- **单位**：字节 (bytes)\n\n## 监控价值\n- **网络带宽**：反映系统传输的数据量，影响网络带宽使用\n- **响应效率**：过大的响应大小可能影响前端渲染速度\n- **API 设计**：帮助识别可能需要优化的大型响应\n- **存储成本**：对于需要缓存响应的场景，影响存储使用\n\n## 数据来源\n- **指标类型**：Prometheus Counter 指标\n- **数据采集**：系统自动记录每个 HTTP 响应的大小\n- **计算窗口**：5 分钟滚动窗口，平衡实时性和稳定性",
       "fieldConfig": {
@@ -667,7 +663,7 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "12.3.0",
+      "pluginVersion": "12.4.2",
       "targets": [
         {
           "datasource": {
@@ -689,7 +685,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "ef9ih0gtiiubke"
+        "uid": "Prometheus"
       },
       "fieldConfig": {
         "defaults": {
@@ -745,7 +741,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "12.3.0",
+      "pluginVersion": "12.4.2",
       "targets": [
         {
           "datasource": {
@@ -767,9 +763,8 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "ef9ih0gtiiubke"
+        "uid": "Prometheus"
       },
-      "description": "",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -818,7 +813,7 @@
         "showThresholdMarkers": true,
         "sizing": "auto"
       },
-      "pluginVersion": "12.3.0",
+      "pluginVersion": "12.4.2",
       "targets": [
         {
           "datasource": {
@@ -828,7 +823,6 @@
           "editorMode": "code",
           "exemplar": false,
           "expr": "sum(aiotest_http_requests_total{assertion_result=\"fail\"}) / sum(aiotest_http_requests_total)",
-          "hide": false,
           "instant": false,
           "interval": "",
           "legendFormat": "__auto",
@@ -842,7 +836,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "ef9ih0gtiiubke"
+        "uid": "Prometheus"
       },
       "description": "# 系统整体平均响应时间 (5分钟窗口)\n\n## 指标含义\n- **含义**：所有接口在最近 5 分钟内的整体平均响应时间\n- **单位**：秒 (s)\n\n## 监控价值\n- **系统健康度**：直接反映系统的整体性能状况\n- **用户体验**：响应时间是影响用户体验的关键指标\n- **性能基线**：建立系统正常运行时的响应时间基线\n- **容量规划**：基于响应时间和请求速率的关系进行容量预测\n- **性能优化**：识别系统性能瓶颈的重要依据\n\n## 数据来源\n- **指标类型**：Prometheus Counter 指标\n- **数据采集**：系统自动记录每个 HTTP 请求的响应时间和次数\n- **计算窗口**：5 分钟滚动窗口，平衡实时性和稳定性\n\n## 最佳实践\n- **与请求速率关联**：在同一仪表板中显示平均响应时间和请求速率，分析负载与性能的关系\n- **设置基准线**：建立正常业务流量下的响应时间基线，识别异常波动\n- **多维度分析**：结合接口、方法等维度，深入分析系统性能特征\n- **定期优化**：基于历史数据，识别性能下降趋势，及时进行优化",
       "fieldConfig": {
@@ -959,7 +953,7 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "12.3.0",
+      "pluginVersion": "12.4.2",
       "targets": [
         {
           "datasource": {
@@ -978,13 +972,12 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "ef9ih0gtiiubke"
+            "uid": "Prometheus"
           },
           "editorMode": "code",
           "exemplar": true,
           "expr": "sum(aiotest_worker_active_users)",
           "format": "time_series",
-          "hide": false,
           "instant": false,
           "interval": "",
           "legendFormat": "活动用户数",
@@ -998,7 +991,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "ef9ih0gtiiubke"
+        "uid": "Prometheus"
       },
       "description": "# 请求速率 (RPS) (5分钟窗口)\n\n## 指标含义\n- **含义**：所有接口在最近 5 分钟内的整体平均每秒请求数\n- **单位**：请求/秒 (RPS)\n\n## 监控价值\n- **系统负载**：直接反映系统的繁忙程度\n- **容量规划**：基于历史峰值 RPS 进行系统扩容\n- **性能瓶颈**：识别请求突增的时间段，分析系统瓶颈\n- **趋势分析**：监控 RPS 的变化趋势，预测系统负载增长\n- **告警触发**：当 RPS 超过系统容量时触发告警\n\n## 数据来源\n- **指标类型**：Prometheus Counter 指标\n- **数据采集**：系统自动记录每个 HTTP 请求的计数\n- **计算窗口**：5 分钟滚动窗口，平衡实时性和数据稳定性\n\n## 最佳实践\n- **与响应时间关联**：在同一仪表板中显示 RPS 和响应时间，分析负载与性能的关系\n- **设置基准线**：建立正常业务流量的 RPS 基准线，识别异常波动\n- **历史对比**：比较不同时间段的 RPS，分析业务增长趋势\n- **多维度分析**：结合接口、方法等维度，深入分析系统负载特征",
       "fieldConfig": {
@@ -1116,7 +1109,7 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "12.3.0",
+      "pluginVersion": "12.4.2",
       "targets": [
         {
           "datasource": {
@@ -1134,13 +1127,12 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "ef9ih0gtiiubke"
+            "uid": "Prometheus"
           },
           "editorMode": "code",
           "exemplar": true,
           "expr": "sum(aiotest_worker_active_users)",
           "format": "time_series",
-          "hide": false,
           "instant": false,
           "interval": "",
           "legendFormat": "活动用户数",
@@ -1154,7 +1146,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "ef9ih0gtiiubke"
+        "uid": "Prometheus"
       },
       "description": "# P50 响应时间 (5分钟窗口)\n\n## 指标含义\n- **含义**：所有接口在最近 5 分钟内的 50% 分位数响应时间（中位数）\n- **单位**：秒 (s)\n\n## 监控价值\n- **用户体验**：中位数响应时间反映了典型用户的体验\n- **性能基准**：可作为系统性能的基准指标\n- **异常检测**：与 P95、P99 对比，识别响应时间分布异常\n- **优化目标**：可作为性能优化的目标指标\n\n## 数据来源\n- **指标类型**：Prometheus Histogram 指标\n- **数据采集**：系统自动记录每个 HTTP 请求的响应时间分布\n- **计算窗口**：5 分钟滚动窗口",
       "fieldConfig": {
@@ -1264,7 +1256,7 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "12.3.0",
+      "pluginVersion": "12.4.2",
       "targets": [
         {
           "datasource": {
@@ -1274,7 +1266,6 @@
           "editorMode": "code",
           "exemplar": true,
           "expr": "histogram_quantile(0.5, sum(rate(aiotest_http_request_duration_seconds_bucket[5m])) by (le, endpoint, method))",
-          "hide": false,
           "interval": "",
           "legendFormat": "{{endpoint}}",
           "range": true,
@@ -1287,7 +1278,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "ef9ih0gtiiubke"
+        "uid": "Prometheus"
       },
       "description": "# P98 响应时间 (5分钟窗口)\n\n## 指标含义\n- **含义**：所有接口在最近 5 分钟内的 98% 分位数响应时间\n- **单位**：秒 (s)\n\n## 监控价值\n- **性能边界**：反映系统在高负载下的性能表现\n- **用户体验**：98% 的用户体验不会超过该响应时间\n- **容量规划**：为系统扩容和性能优化提供依据\n- **SLA 监控**：可作为服务级别协议 (SLA) 的重要指标\n\n## 数据来源\n- **指标类型**：Prometheus Histogram 指标\n- **数据采集**：系统自动记录每个 HTTP 请求的响应时间分布\n- **计算窗口**：5 分钟滚动窗口，平衡实时性和数据稳定性",
       "fieldConfig": {
@@ -1372,7 +1363,7 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "12.3.0",
+      "pluginVersion": "12.4.2",
       "targets": [
         {
           "datasource": {
@@ -1382,7 +1373,6 @@
           "editorMode": "code",
           "exemplar": true,
           "expr": "histogram_quantile(0.98, sum(rate(aiotest_http_request_duration_seconds_bucket[5m])) by (le, endpoint, method))",
-          "hide": false,
           "interval": "",
           "legendFormat": "{{endpoint}}",
           "range": true,
@@ -1395,7 +1385,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "ef9ih0gtiiubke"
+        "uid": "Prometheus"
       },
       "fieldConfig": {
         "defaults": {
@@ -1450,12 +1440,12 @@
           }
         ]
       },
-      "pluginVersion": "12.3.0",
+      "pluginVersion": "12.4.2",
       "targets": [
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "ef9ih0gtiiubke"
+            "uid": "Prometheus"
           },
           "editorMode": "code",
           "exemplar": false,
@@ -1555,8 +1545,9 @@
     "to": "now"
   },
   "timepicker": {},
-  "timezone": "",
+  "timezone": "browser",
   "title": "Aiotest",
   "uid": "5DXcaf84k01",
-  "version": 18
+  "version": 3,
+  "weekStart": ""
 }

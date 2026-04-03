@@ -47,7 +47,11 @@ plugins:
 markdown_extensions:
   - admonition
   - pymdownx.details
-  - pymdownx.superfences
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
   - pymdownx.highlight:
       anchor_linenums: true
   - pymdownx.inlinehilite
@@ -66,6 +70,8 @@ nav:
   - 首页: README.md
   - 快速开始:
       - 入门指南: quickstart.md
+  - 示例项目:
+      - 示例项目总览: EXAMPLES.md
   - API 参考:
       - CLI 模块: CLI_MODULE_DOC.md
       - Clients 模块: CLIENTS_MODULE_DOC.md
@@ -78,13 +84,14 @@ nav:
       - State Manager 模块: STATE_MANAGER_MODULE_DOC.md
       - Task Manager 模块: TASK_MANAGER_MODULE_DOC.md
       - User Manager 模块: USER_MANAGER_MODULE_DOC.md
+      - Users 模块: USERS_MODULE_DOC.md
       - Runners 模块: RUNNERS_MODULE_DOC.md
       - Runner Factory 模块: RUNNER_FACTORY_MODULE_DOC.md
       - Load Shape Manager 模块: LOAD_SHAPE_MANAGER_MODULE_DOC.md
       - 分布式协调器模块: DISTRIBUTED_COORDINATOR_MODULE_DOC.md
+      - API 参考: API_REFERENCE.md
   - 最佳实践: BEST_PRACTICES.md
   - 常见问题: FAQ.md
-  - 架构设计: ARCHITECTURE.md
 
 # Extra
 extra:

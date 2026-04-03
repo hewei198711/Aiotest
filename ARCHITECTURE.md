@@ -1,15 +1,17 @@
 # AioTest 架构设计文档
 
+<!-- markdownlint-disable MD024 -->
+
 ## 目录
 
-- [架构概览](#架构概览)
-- [整体架构](#整体架构)
-- [模块关系图](#模块关系图)
-- [数据流](#数据流)
-- [分布式设计](#分布式设计)
-- [核心组件](#核心组件)
-- [设计模式](#设计模式)
-- [扩展点](#扩展点)
+- [架构概览](#%E6%9E%B6%E6%9E%84%E6%A6%82%E8%A7%88)
+- [整体架构](#%E6%95%B4%E4%BD%93%E6%9E%B6%E6%9E%84)
+- [模块关系图](#%E6%A8%A1%E5%9D%97%E5%85%B3%E7%B3%BB%E5%9B%BE)
+- [数据流](#%E6%95%B0%E6%8D%AE%E6%B5%81)
+- [分布式设计](#%E5%88%86%E5%B8%83%E5%BC%8F%E8%AE%BE%E8%AE%A1)
+- [核心组件](#%E6%A0%B8%E5%BF%83%E7%BB%84%E4%BB%B6)
+- [设计模式](#%E8%AE%BE%E8%AE%A1%E6%A8%A1%E5%BC%8F)
+- [扩展点](#%E6%89%A9%E5%B1%95%E7%82%B9)
 
 ## 架构概览
 
@@ -18,15 +20,15 @@ AioTest 是一个基于 asyncio 的高性能负载测试框架，采用模块化
 ### 设计原则
 
 1. **异步优先**：基于 asyncio 实现真正的异步并发
-2. **模块化**：各模块职责清晰，低耦合高内聚
-3. **可扩展**：提供丰富的扩展点，支持自定义
-4. **高性能**：优化资源使用，最大化测试性能
-5. **可观测**：完善的监控和日志系统
+1. **模块化**：各模块职责清晰，低耦合高内聚
+1. **可扩展**：提供丰富的扩展点，支持自定义
+1. **高性能**：优化资源使用，最大化测试性能
+1. **可观测**：完善的监控和日志系统
 
 ### 技术栈
 
 | 技术 | 用途 | 版本 |
-|------|------|------|
+| ---- | ---- | ---- |
 | Python | 开发语言 | 3.8+ |
 | asyncio | 异步编程 | 内置 |
 | aiohttp | HTTP 客户端 | 3.8+ |
@@ -38,7 +40,7 @@ AioTest 是一个基于 asyncio 的高性能负载测试框架，采用模块化
 
 ### 架构层次
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────┐
 │                         用户层                              │
 │  (User Classes, Load Shapes, Test Scripts)                  │
@@ -73,7 +75,7 @@ AioTest 是一个基于 asyncio 的高性能负载测试框架，采用模块化
 
 #### 单机模式（Local Mode）
 
-```
+```text
 ┌─────────────────────────────────────────┐
 │         LocalRunner                    │
 │  ┌─────────────────────────────────┐  │
@@ -93,7 +95,7 @@ AioTest 是一个基于 asyncio 的高性能负载测试框架，采用模块化
 
 #### 分布式模式（Distributed Mode）
 
-```
+```text
 ┌─────────────────────────────────────────┐
 │         MasterRunner                    │
 │  ┌─────────────────────────────────┐  │
@@ -137,55 +139,55 @@ graph TB
     subgraph "主入口"
         A[main.py] --> B[runner_factory.py]
     end
-    
+
     subgraph "运行器"
         B --> C1[LocalRunner]
         B --> C2[MasterRunner]
         B --> C3[WorkerRunner]
         B --> C4[BaseRunner]
     end
-    
+
     subgraph "运行器实现"
         C1 --> D[runners.py]
         C2 --> D
         C3 --> D
         C4 --> B[runner_factory.py]
     end
-    
+
     subgraph "用户管理"
         C1 --> E[user_manager.py]
         C3 --> E
         E --> F[users.py]
     end
-    
+
     subgraph "任务管理"
         C1 --> G[task_manager.py]
         C3 --> G
     end
-    
+
     subgraph "状态管理"
         C1 --> H[state_manager.py]
         C2 --> H
         C3 --> H
     end
-    
+
     subgraph "负载管理"
         C1 --> I[load_shape_manager.py]
         C2 --> I
         I --> J[shape.py]
     end
-    
+
     subgraph "分布式协调"
         C2 --> K[distributed_coordinator.py]
         C3 --> K
     end
-    
+
     subgraph "指标收集"
         C1 --> L[metrics.py]
         C2 --> L
         C3 --> L
     end
-    
+
     subgraph "基础服务"
         F --> M[clients.py]
         N[events.py] --> F
@@ -197,7 +199,7 @@ graph TB
 ### 模块职责
 
 | 模块 | 职责 | 依赖 | 源码文件 |
-|------|------|------|----------|
+| ---- | ---- | ---- | -------- |
 | main.py | 主入口，命令行解析 | runner_factory | [main.py](aiotest/main.py) |
 | runner_factory.py | 运行器工厂，事件处理器注册，BaseRunner实现 | state_manager, user_manager, task_manager, load_shape_manager | [runner_factory.py](aiotest/runner_factory.py) |
 | runners.py | 运行器实现（LocalRunner, MasterRunner, WorkerRunner） | 所有服务模块 | [runners.py](aiotest/runners.py) |
@@ -224,7 +226,7 @@ sequenceDiagram
     participant TaskManager as TaskManager
     participant Client as HTTPClient
     participant Server as Target Server
-    
+
     User->>Runner: 启动测试
     Runner->>UserManager: 创建用户
     UserManager->>UserManager: 初始化用户
@@ -250,7 +252,7 @@ sequenceDiagram
     participant Redis as Redis
     participant Worker1 as Worker 1
     participant Worker2 as Worker 2
-    
+
     Master->>Coordinator: 初始化
     Coordinator->>Redis: 订阅频道
     Master->>Coordinator: 等待 Worker
@@ -280,9 +282,9 @@ sequenceDiagram
     participant Buffer as MetricsBuffer
     participant Redis as Redis
     participant Prometheus as Prometheus
-    
+
     User->>Collector: 记录指标
-    
+
     alt 本地模式或Master节点
         Collector->>Prometheus: 直接上报到Prometheus
     else Worker节点
@@ -293,7 +295,7 @@ sequenceDiagram
             Redis->>Prometheus: Master节点收集并上报
         end
     end
-    
+
     Prometheus->>Prometheus: 聚合指标
     Prometheus->>Prometheus: 导出指标
 ```
@@ -307,17 +309,17 @@ AioTest 采用 Master-Worker 架构，支持水平扩展。
 #### Master 节点职责
 
 1. **负载分配**：根据 Worker 能力分配负载
-2. **状态协调**：通过 Redis 协调 Worker 状态
-3. **结果汇总**：收集和汇总测试结果
-4. **负载控制**：控制整体负载形状
-5. **Worker 管理**：自动发现和管理 Worker 节点
+1. **状态协调**：通过 Redis 协调 Worker 状态
+1. **结果汇总**：收集和汇总测试结果
+1. **负载控制**：控制整体负载形状
+1. **Worker 管理**：自动发现和管理 Worker 节点
 
 #### Worker 节点职责
 
 1. **执行测试**：在本地执行用户任务
-2. **状态上报**：定期向 Master 上报状态
-3. **指标收集**：收集本地测试指标
-4. **命令响应**：响应 Master 的控制命令
+1. **状态上报**：定期向 Master 上报状态
+1. **指标收集**：收集本地测试指标
+1. **命令响应**：响应 Master 的控制命令
 
 ### 分布式协调机制
 
@@ -347,6 +349,7 @@ AioTest 采用 Master-Worker 架构，支持水平扩展。
 基础运行器，提供组合式架构的核心组件，包括用户管理、状态管理、任务管理和负载形状管理。
 
 **主要功能**：
+
 - 延迟初始化组件（避免循环导入）
 - 提供统一的启动、停止和退出接口
 - 管理用户生命周期
@@ -359,6 +362,7 @@ AioTest 采用 Master-Worker 架构，支持水平扩展。
 本地负载测试运行器，负责在单机模式下执行测试。
 
 **主要功能**：
+
 - 本地用户管理和负载执行
 - Prometheus HTTP 指标服务启动
 - 系统资源监控（CPU、用户数）
@@ -371,6 +375,7 @@ AioTest 采用 Master-Worker 架构，支持水平扩展。
 主节点运行器，负责在分布式模式下协调 Worker 节点。
 
 **主要功能**：
+
 - 分布式节点管理
 - 负载分配策略
 - 全局状态协调
@@ -383,6 +388,7 @@ AioTest 采用 Master-Worker 架构，支持水平扩展。
 工作节点运行器，负责在分布式模式下执行实际的测试任务。
 
 **主要功能**：
+
 - 执行测试任务
 - 状态上报
 - 指标收集
@@ -395,6 +401,7 @@ AioTest 采用 Master-Worker 架构，支持水平扩展。
 负责用户的生命周期管理，包括创建、启动、停止和清理用户。
 
 **主要功能**：
+
 - 用户创建和初始化
 - 用户启动和停止
 - 用户状态管理
@@ -407,6 +414,7 @@ AioTest 采用 Master-Worker 架构，支持水平扩展。
 负责任务的调度和管理，确保测试任务的高效执行。
 
 **主要功能**：
+
 - 任务创建和调度
 - 任务状态管理
 - 任务取消和清理
@@ -419,6 +427,7 @@ AioTest 采用 Master-Worker 架构，支持水平扩展。
 负责运行器的状态管理，确保测试过程的正确执行。
 
 **主要功能**：
+
 - 状态转换管理
 - 状态验证
 - 状态查询
@@ -431,6 +440,7 @@ AioTest 采用 Master-Worker 架构，支持水平扩展。
 负责根据负载形状配置管理用户数量和请求速率。
 
 **主要功能**：
+
 - 负载形状解析
 - 用户数量控制
 - 请求速率控制
@@ -443,6 +453,7 @@ AioTest 采用 Master-Worker 架构，支持水平扩展。
 负责分布式环境下的节点协调和通信。
 
 **主要功能**：
+
 - 节点注册和发现
 - 心跳检测
 - 命令发布和订阅
@@ -455,6 +466,7 @@ AioTest 采用 Master-Worker 架构，支持水平扩展。
 负责收集和导出测试指标，支持 Prometheus 集成。
 
 **主要功能**：
+
 - 请求指标收集
 - 系统指标收集
 - 指标导出
@@ -467,6 +479,7 @@ AioTest 采用 Master-Worker 架构，支持水平扩展。
 负责发送 HTTP 请求，支持异步操作。
 
 **主要功能**：
+
 - 异步 HTTP 请求
 - 请求重试
 - 连接池管理
@@ -479,6 +492,7 @@ AioTest 采用 Master-Worker 架构，支持水平扩展。
 负责事件的发布和订阅，支持测试生命周期中的各种事件。
 
 **主要功能**：
+
 - 事件注册和触发
 - 事件处理器管理
 - 优先级执行
@@ -493,6 +507,7 @@ AioTest 采用 Master-Worker 架构，支持水平扩展。
 用于创建不同类型的运行器实例。
 
 **应用场景**：
+
 - 运行器创建
 - 组件初始化
 - 依赖注入
@@ -504,6 +519,7 @@ AioTest 采用 Master-Worker 架构，支持水平扩展。
 用于事件系统的实现，支持事件的发布和订阅。
 
 **应用场景**：
+
 - 测试生命周期事件
 - 指标收集事件
 - 状态变更事件
@@ -515,6 +531,7 @@ AioTest 采用 Master-Worker 架构，支持水平扩展。
 用于负载形状的实现，支持不同的负载策略。
 
 **应用场景**：
+
 - 恒定负载
 - 阶梯负载
 - 自定义负载
@@ -526,6 +543,7 @@ AioTest 采用 Master-Worker 架构，支持水平扩展。
 用于运行器状态的管理，确保状态转换的正确性。
 
 **应用场景**：
+
 - 运行器状态管理
 - 测试生命周期控制
 - 错误处理
@@ -537,6 +555,7 @@ AioTest 采用 Master-Worker 架构，支持水平扩展。
 用于构建复杂的组件结构，如运行器的组件组合。
 
 **应用场景**：
+
 - 运行器组件管理
 - 负载形状组合
 - 用户任务组合
@@ -550,6 +569,7 @@ AioTest 采用 Master-Worker 架构，支持水平扩展。
 通过继承 `User` 类，可以自定义用户行为和请求逻辑。
 
 **示例**：
+
 ```python
 from aiotest.users import HttpUser
 
@@ -557,7 +577,7 @@ class CustomUser(HttpUser):
     """自定义用户类"""
     host = "https://example.com"
     wait_time = (1, 2)
-    
+
     async def test_custom_request(self):
         """自定义请求方法"""
         async with self.client.get("/api/test") as resp:
@@ -571,6 +591,7 @@ class CustomUser(HttpUser):
 通过继承 `LoadShape` 类，可以自定义负载形状。
 
 **示例**：
+
 ```python
 from aiotest.shape import LoadShape
 
@@ -578,7 +599,7 @@ class CustomShape(LoadShape):
     """自定义负载形状"""
     def __init__(self, stages):
         self.stages = stages
-    
+
     def get_users(self, current_time):
         """根据当前时间获取用户数"""
         for stage in self.stages:
@@ -594,6 +615,7 @@ class CustomShape(LoadShape):
 通过注册事件处理器，可以自定义测试过程中的行为。
 
 **示例**：
+
 ```python
 from aiotest import test_start, test_stop
 
@@ -636,6 +658,7 @@ async def on_user_stop(user, **kwargs):
 AioTest 采用模块化、可扩展的架构设计，支持单机和分布式两种运行模式。通过清晰的模块划分和合理的设计模式，实现了高性能、高可用的负载测试框架。
 
 关键设计特点：
+
 - 异步优先：基于 asyncio 实现真正的异步并发
 - 模块化：各模块职责清晰，低耦合高内聚
 - 可扩展：提供丰富的扩展点，支持自定义

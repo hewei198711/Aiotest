@@ -1,23 +1,25 @@
 # AioTest 运行器工厂模块文档
 
+<!-- markdownlint-disable MD024 -->
+
 ## 目录
 
-- [概述](#概述)
-- [核心功能](#核心功能)
-- [常量定义](#常量定义)
-- [参数验证函数](#参数验证函数)
-- [事件处理器注册类](#事件处理器注册类)
-- [运行器工厂类](#运行器工厂类)
-- [基础运行器类](#基础运行器类)
-- [事件处理器方法](#事件处理器方法)
-- [调用逻辑流程](#调用逻辑流程)
-- [流程图](#流程图)
-- [配置参数](#配置参数)
-- [使用示例](#使用示例)
-- [故障排查](#故障排查)
-- [总结](#总结)
+- [概述](#%E6%A6%82%E8%BF%B0)
+- [核心功能](#%E6%A0%B8%E5%BF%83%E5%8A%9F%E8%83%BD)
+- [常量定义](#%E5%B8%B8%E9%87%8F%E5%AE%9A%E4%B9%89)
+- [参数验证函数](#%E5%8F%82%E6%95%B0%E9%AA%8C%E8%AF%81%E5%87%BD%E6%95%B0)
+- [事件处理器注册类](#%E4%BA%8B%E4%BB%B6%E5%A4%84%E7%90%86%E5%99%A8%E6%B3%A8%E5%86%8C%E7%B1%BB)
+- [运行器工厂类](#%E8%BF%90%E8%A1%8C%E5%99%A8%E5%B7%A5%E5%8E%82%E7%B1%BB)
+- [基础运行器类](#%E5%9F%BA%E7%A1%80%E8%BF%90%E8%A1%8C%E5%99%A8%E7%B1%BB)
+- [事件处理器方法](#%E4%BA%8B%E4%BB%B6%E5%A4%84%E7%90%86%E5%99%A8%E6%96%B9%E6%B3%95)
+- [调用逻辑流程](#%E8%B0%83%E7%94%A8%E9%80%BB%E8%BE%91%E6%B5%81%E7%A8%8B)
+- [流程图](#%E6%B5%81%E7%A8%8B%E5%9B%BE)
+- [配置参数](#%E9%85%8D%E7%BD%AE%E5%8F%82%E6%95%B0)
+- [使用示例](#%E4%BD%BF%E7%94%A8%E7%A4%BA%E4%BE%8B)
+- [故障排查](#%E6%95%85%E9%9A%9C%E6%8E%92%E6%9F%A5)
+- [总结](#%E6%80%BB%E7%BB%93)
 
----
+______________________________________________________________________
 
 ## 概述
 
@@ -35,98 +37,115 @@
 
 ## 常量定义
 
-#### 运行器节点类型常量
+### 运行器节点类型常量
 
 | 常量名 | 值 | 说明 |
-|-------|------|------|
+| ----- | ---- | ---- |
 | `NODE_TYPE_LOCAL` | `"local"` | 本地运行器类型 |
 | `NODE_TYPE_MASTER` | `"master"` | 主节点运行器类型 |
 | `NODE_TYPE_WORKER` | `"worker"` | 工作节点运行器类型 |
 
 ## 参数验证函数
 
-#### `validate_load_params` 函数
+### `validate_load_params` 函数
+
 **作用**：验证负载测试参数的有效性
 
 **参数**：
+
 - `user_count (int)`：用户数量，必须为正整数
 - `rate (float)`：速率，必须大于0且不超过用户数量
 
 **异常**：
+
 - `InvalidUserCountError`：当 user_count 不是正整数时抛出
 - `InvalidRateError`：当 rate 不在有效范围内时抛出
 
 **功能**：
+
 - 验证用户数量是否为正整数
 - 验证速率是否在有效范围内
 - 对过高的速率发出警告
 
 #### `validate_params` 装饰器
+
 **作用**：参数验证装饰器，自动验证用户数量和速率参数
 
 **参数**：
+
 - `func`：被装饰的函数
 
 **返回值**：
+
 - 包装后的函数
 
 **功能**：
+
 - 在函数执行前自动调用 `validate_load_params` 进行参数验证
 - 简化参数验证逻辑，避免重复代码
 
 ## 事件处理器注册类
 
-#### `EventHandlerRegistry` 类
+### `EventHandlerRegistry` 类
 
-##### 初始化方法
+#### 初始化方法
+
 ```python
 def __init__(self)
 ```
+
 **作用**：初始化事件处理器注册中心
 
 **参数说明**：
+
 - 无参数
 
 **属性**：
+
 - `_registered_handlers (set)`：已注册处理器的运行器 ID 集合
 
 ##### 方法说明
 
 | 方法名 | 作用 | 参数 | 返回值 | 调用时机 |
-|-------|------|------|-------|---------|
+| ----- | ---- | ---- | ----- | ------- |
 | `register_handlers(runner)` | 根据运行器类型注册相应的事件处理器 | `runner: Any` | `None` | 创建运行器时 |
 
 ## 运行器工厂类
 
-#### `RunnerFactory` 类
+### `RunnerFactory` 类
 
-##### 静态方法
+#### 静态方法
 
 | 方法名 | 作用 | 参数 | 返回值 | 调用时机 |
-|-------|------|------|-------|---------|
+| ----- | ---- | ---- | ----- | ------- |
 | `create(runner_type, user_types, load_shape, config, redis_client=None)` | 创建指定类型的运行器实例 | `runner_type: str`, `user_types: List[Type['User']]`, `load_shape: Any`, `config: Dict[str, Any]`, `redis_client: Optional[Redis]` | `Any` | 需要创建运行器时 |
 
 **说明**：
+
 - 支持三种运行器类型：local、master、worker
 - 使用延迟导入避免循环依赖
 - 自动初始化运行器并注册事件处理器
 
 ## 基础运行器类
 
-#### `BaseRunner` 类
+### `BaseRunner` 类
 
-##### 初始化方法
+#### 初始化方法
+
 ```python
 def __init__(self, user_types: List[Type['User']], load_shape: Any, config: Dict[str, Any])
 ```
+
 **作用**：初始化基础运行器，配置核心组件
 
 **参数说明**：
+
 - `user_types`：用户类列表
 - `load_shape`：负载形状控制类
 - `config`：配置选项
 
 **属性**：
+
 - `user_types (List[Type['User']])`：用户类型列表
 - `load_shape (Any)`：负载形状控制类
 - `config (Dict[str, Any])`：配置选项
@@ -136,7 +155,7 @@ def __init__(self, user_types: List[Type['User']], load_shape: Any, config: Dict
 ##### 方法说明
 
 | 方法名 | 作用 | 参数 | 返回值 | 调用时机 |
-|-------|------|------|-------|---------|
+| ----- | ---- | ---- | ----- | ------- |
 | `initialize()` | 初始化运行器 | 无 | `None` | 创建运行器后 |
 | `start()` | 启动测试 | 无 | `None` | 需要启动测试时 |
 | `run_until_complete()` | 运行测试直到完成 | 无 | `None` | 启动测试后 |
@@ -148,7 +167,7 @@ def __init__(self, user_types: List[Type['User']], load_shape: Any, config: Dict
 ##### 属性说明
 
 | 属性名 | 类型 | 说明 |
-|-------|------|------|
+| ----- | ---- | ---- |
 | `user_manager` | `UserManager` | 用户管理器（延迟初始化） |
 | `state_manager` | `StateManager` | 状态管理器（延迟初始化） |
 | `task_manager` | `TaskManager` | 任务管理器（延迟初始化） |
@@ -158,27 +177,33 @@ def __init__(self, user_types: List[Type['User']], load_shape: Any, config: Dict
 
 ## 事件处理器方法
 
-#### `on_startup_completed` 函数
+### `on_startup_completed` 函数
+
 **作用**：处理启动完成事件
 
 **参数**：
+
 - `node_type (str)`：节点类型
 - `**kwargs (Any)`：其他参数
 
 **功能**：
+
 - 根据节点类型处理启动完成事件
 - Master 节点：转换状态并记录汇总信息
 - LocalRunner 节点：转换状态并记录用户数量
 - Worker 节点：不在此处理，避免死锁
 
 #### `on_worker_request_metrics` 函数
+
 **作用**：处理接收到的工作节点请求指标数据事件
 
 **参数**：
+
 - `node_type (str)`：节点类型
 - `**kwargs (Any)`：其他参数
 
 **功能**：
+
 - 只在 Master 节点处理 Worker 请求指标
 - 从字典创建 RequestMetrics 对象
 - 调用指标收集器处理请求指标
@@ -188,33 +213,33 @@ def __init__(self, user_types: List[Type['User']], load_shape: Any, config: Dict
 ### 运行器创建流程
 
 1. **调用工厂方法** → 调用 `RunnerFactory.create()` 方法
-2. **验证运行器类型** → 检查运行器类型是否有效
-3. **延迟导入** → 根据运行器类型延迟导入相应的运行器类
-4. **创建运行器实例** → 实例化相应的运行器类
-5. **初始化运行器** → 调用运行器的 `initialize()` 方法
-6. **注册事件处理器** → 使用 `EventHandlerRegistry` 注册事件处理器
-7. **返回运行器** → 返回初始化完成的运行器实例
+1. **验证运行器类型** → 检查运行器类型是否有效
+1. **延迟导入** → 根据运行器类型延迟导入相应的运行器类
+1. **创建运行器实例** → 实例化相应的运行器类
+1. **初始化运行器** → 调用运行器的 `initialize()` 方法
+1. **注册事件处理器** → 使用 `EventHandlerRegistry` 注册事件处理器
+1. **返回运行器** → 返回初始化完成的运行器实例
 
 ### 负载应用流程
 
 1. **调用 apply_load** → 负载形状管理器调用 `apply_load()` 方法
-2. **参数验证** → 验证用户数量和速率参数
-3. **状态转换** → 如果可以启动，转换到 STARTING 状态
-4. **管理用户** → 根据目标用户数量启动或停止用户
-5. **清理非活跃用户** → 清理已完成的用户
-6. **转换到运行状态** → 首次启动时转换到 RUNNING 状态
-7. **触发启动完成事件** → 非 Worker 节点触发全局启动完成事件
+1. **参数验证** → 验证用户数量和速率参数
+1. **状态转换** → 如果可以启动，转换到 STARTING 状态
+1. **管理用户** → 根据目标用户数量启动或停止用户
+1. **清理非活跃用户** → 清理已完成的用户
+1. **转换到运行状态** → 首次启动时转换到 RUNNING 状态
+1. **触发启动完成事件** → 非 Worker 节点触发全局启动完成事件
 
 ### 退出流程
 
 1. **调用 quit** → 调用运行器的 `quit()` 方法
-2. **检查退出状态** → 如果已处于退出状态，直接返回
-3. **停止负载形状管理器** → 停止负载形状管理器
-4. **设置退出状态** → 设置退出状态标记
-5. **转换到退出状态** → 转换到 QUITTING 状态
-6. **停止所有用户** → 停止所有活跃用户
-7. **取消后台任务** → 取消所有后台任务
-8. **记录日志** → 记录退出成功日志
+1. **检查退出状态** → 如果已处于退出状态，直接返回
+1. **停止负载形状管理器** → 停止负载形状管理器
+1. **设置退出状态** → 设置退出状态标记
+1. **转换到退出状态** → 转换到 QUITTING 状态
+1. **停止所有用户** → 停止所有活跃用户
+1. **取消后台任务** → 取消所有后台任务
+1. **记录日志** → 记录退出成功日志
 
 ## 流程图
 
@@ -282,7 +307,7 @@ flowchart TD
 ## 配置参数
 
 | 参数名 | 类型 | 默认值 | 说明 | 适用场景 |
-|-------|------|-------|------|---------|
+| ----- | ---- | ----- | ---- | ------- |
 | `runner_type` | `str` | 无 | 运行器类型（local/master/worker） | 创建运行器时必需 |
 | `user_types` | `List[Type['User']]` | 无 | 用户类列表 | 创建运行器时必需 |
 | `load_shape` | `Any` | 无 | 负载形状控制类 | 创建运行器时必需 |
@@ -304,7 +329,7 @@ from aiotest import LoadUserShape
 class TestUser(User):
     weight = 1
     wait_time = 1.0
-    
+
     async def test_task(self):
         print("Executing test task")
 
@@ -321,16 +346,16 @@ async def create_local_runner():
         load_shape=SimpleLoadShape(),
         config={}
     )
-    
+
     print(f"Created runner: {runner.__class__.__name__}")
     print(f"Runner node type: {runner.node}")
-    
+
     # 启动测试
     await runner.start()
-    
+
     # 运行测试
     await runner.run_until_complete()
-    
+
     # 退出运行器
     await runner.quit()
 
@@ -350,7 +375,7 @@ from aiotest import LoadUserShape
 class TestUser(User):
     weight = 1
     wait_time = 1.0
-    
+
     async def test_task(self):
         print("Executing test task")
 
@@ -367,7 +392,7 @@ async def create_master_runner():
         port=6379, 
         password=""
     )
-    
+
     # 创建主节点运行器
     runner = await RunnerFactory.create(
         runner_type="master",
@@ -376,19 +401,19 @@ async def create_master_runner():
         config={},
         redis_client=redis_client
     )
-    
+
     print(f"Created runner: {runner.__class__.__name__}")
     print(f"Runner node type: {runner.node}")
-    
+
     # 启动测试
     await runner.start()
-    
+
     # 运行测试
     await runner.run_until_complete()
-    
+
     # 退出运行器
     await runner.quit()
-    
+
     # 关闭 Redis 连接
     await redis_client.close()
 
@@ -408,7 +433,7 @@ from aiotest import LoadUserShape
 class TestUser(User):
     weight = 1
     wait_time = 1.0
-    
+
     async def test_task(self):
         print("Executing test task")
 
@@ -425,7 +450,7 @@ async def create_worker_runner():
         port=6379, 
         password=""
     )
-    
+
     # 创建工作节点运行器
     runner = await RunnerFactory.create(
         runner_type="worker",
@@ -434,19 +459,19 @@ async def create_worker_runner():
         config={},
         redis_client=redis_client
     )
-    
+
     print(f"Created runner: {runner.__class__.__name__}")
     print(f"Runner node type: {runner.node}")
-    
+
     # 启动测试
     await runner.start()
-    
+
     # 运行测试
     await runner.run_until_complete()
-    
+
     # 退出运行器
     await runner.quit()
-    
+
     # 关闭 Redis 连接
     await redis_client.close()
 
@@ -472,13 +497,13 @@ async def validation_example():
         await apply_load_with_validation(10, 2.0)
     except (InvalidUserCountError, InvalidRateError) as e:
         print(f"Validation failed: {e}")
-    
+
     try:
         # 无效的参数（用户数为0）
         await apply_load_with_validation(0, 2.0)
     except InvalidUserCountError as e:
         print(f"Expected validation error: {e}")
-    
+
     try:
         # 无效的参数（速率超过用户数）
         await apply_load_with_validation(10, 15.0)
@@ -489,13 +514,12 @@ async def validation_example():
 await validation_example()
 ```
 
-
 ## 故障排查
 
 ### 常见问题
 
 | 问题 | 可能原因 | 解决方案 |
-|------|---------|---------|
+| ---- | ------- | ------- |
 | 运行器创建失败 | 运行器类型无效 | 检查运行器类型是否为 local/master/worker |
 | 参数验证失败 | 用户数量或速率参数无效 | 检查参数是否符合要求 |
 | 状态转换失败 | 尝试非法状态转换 | 检查状态转换规则 |

@@ -1,20 +1,22 @@
 # AioTest 分布式协调模块文档
 
+<!-- markdownlint-disable MD024 -->
+
 ## 目录
 
-- [概述](#概述)
-- [核心功能](#核心功能)
-- [辅助类](#辅助类)
-- [核心类：DistributedCoordinator](#核心类-distributedcoordinator)
-- [调用逻辑流程](#调用逻辑流程)
-- [流程图](#流程图)
-- [配置参数](#配置参数)
-- [使用示例](#使用示例)
-- [性能优化建议](#性能优化建议)
-- [故障排查](#故障排查)
-- [总结](#总结)
+- [概述](#%E6%A6%82%E8%BF%B0)
+- [核心功能](#%E6%A0%B8%E5%BF%83%E5%8A%9F%E8%83%BD)
+- [辅助类](#%E8%BE%85%E5%8A%A9%E7%B1%BB)
+- [核心类：DistributedCoordinator](#%E6%A0%B8%E5%BF%83%E7%B1%BBdistributedcoordinator)
+- [调用逻辑流程](#%E8%B0%83%E7%94%A8%E9%80%BB%E8%BE%91%E6%B5%81%E7%A8%8B)
+- [流程图](#%E6%B5%81%E7%A8%8B%E5%9B%BE)
+- [配置参数](#%E9%85%8D%E7%BD%AE%E5%8F%82%E6%95%B0)
+- [使用示例](#%E4%BD%BF%E7%94%A8%E7%A4%BA%E4%BE%8B)
+- [性能优化建议](#%E6%80%A7%E8%83%BD%E4%BC%98%E5%8C%96%E5%BB%BA%E8%AE%AE)
+- [故障排查](#%E6%95%85%E9%9A%9C%E6%8E%92%E6%9F%A5)
+- [总结](#%E6%80%BB%E7%BB%93)
 
----
+______________________________________________________________________
 
 ## 概述
 
@@ -32,35 +34,38 @@
 ## 辅助类
 
 ### `RedisConnection` 类
+
 **作用**：管理 Redis 连接池，提供单例模式的 Redis 客户端，支持连接重试机制和指数退避策略
 
 **初始化参数**：
 
 | 参数名 | 类型 | 默认值 | 说明 |
-|-------|------|-------|------|
+| ----- | ---- | ----- | ---- |
 | `max_retries` | `int` | 3 | 最大重试次数 |
 | `retry_interval` | `float` | 1.0 | 初始重试间隔（秒），后续使用指数退避 |
 
 **方法说明**：
 
 | 方法名 | 作用 | 参数 | 返回值 | 调用时机 |
-|-------|------|------|-------|---------|
+| ----- | ---- | ---- | ----- | ----- --|
 | `get_client(path, port, password)` | 获取 Redis 连接实例，支持自动重试 | `path: str`, `port: int`, `password: str` | `Redis` | 初始化协调器时 |
 | `close()` | 关闭 Redis 连接 | 无 | `None` | 系统退出时 |
 
 **重试机制说明**：
+
 - 连接失败时自动重试，最多重试 `max_retries` 次
 - 使用指数退避策略：第1次重试等待1秒，第2次等待2秒，第3次等待4秒
 - 每次连接前使用 `ping()` 测试连接是否真正可用
 - 重试次数通过 `REDIS_CONNECTION_RETRIES` Prometheus 指标记录
 
 ### `DistributedLock` 类
+
 **作用**：提供基于 Redis 的分布式锁机制，支持超时和重试
 
 **方法说明**：
 
 | 方法名 | 作用 | 参数 | 返回值 | 调用时机 |
-|-------|------|------|-------|---------|
+| ----- | ---- | ---- | ----- | ----- --|
 | `__init__(redis, lock_key, timeout, wait_timeout, retry_interval)` | 初始化分布式锁 | `redis: Redis`, `lock_key: str`, `timeout: float`, `wait_timeout: float`, `retry_interval: float` | 无 | 创建锁实例时 |
 | `acquire()` | 获取分布式锁 | 无 | `bool` | 需要获取锁时 |
 | `release()` | 释放分布式锁 | 无 | `bool` | 需要释放锁时 |
@@ -68,15 +73,18 @@
 | `__aexit__(exc_type, exc_val, exc_tb)` | 退出上下文管理器 | 异常相关参数 | `None` | 使用 `async with` 时 |
 | `with_lock(redis, lock_key, timeout, wait_timeout)` | 锁的快捷使用方式 | `redis: Redis`, `lock_key: str`, `timeout: float`, `wait_timeout: float` | `_LockContext` | 需要获取锁时 |
 
-## 核心类：DistributedCoordinator
+## 核心类DistributedCoordinator
 
 ### 初始化方法
+
 ```python
 def __init__(self, redis: Redis, role: str = "master", node_id: str = None)
 ```
+
 **作用**：初始化分布式协调器，配置节点角色和通信频道
 
 **参数说明**：
+
 - `redis`：Redis 客户端实例，用于发布/订阅消息
 - `role`：节点角色，可选值为 "master" 或 "worker"
 - `node_id`：节点 ID，可选，默认自动生成
@@ -84,7 +92,7 @@ def __init__(self, redis: Redis, role: str = "master", node_id: str = None)
 ### 方法说明
 
 | 方法名 | 作用 | 参数 | 返回值 | 调用时机 |
-|-------|------|------|-------|---------|
+| ----- | ---- | ---- | ----- | ----- --|
 | `publish(channel_type, data, worker_id, **kwargs)` | 统一的数据发布方法 | `channel_type: str`, `data: dict`, `worker_id: str`, `**kwargs` | `None` | 发布命令、批量指标或心跳数据时 |
 | `check_worker_heartbeat(worker_id)` | 检查特定 Worker 的心跳状态 | `worker_id: str` | `bool` | Master 节点检查 Worker 存活状态时 |
 | `listen_heartbeats(callback)` | 监听 Worker 心跳数据变化 | `callback: callable` | `None` | Master 节点监控 Worker 状态时 |
@@ -96,31 +104,31 @@ def __init__(self, redis: Redis, role: str = "master", node_id: str = None)
 ### 初始化流程
 
 1. **创建 Redis 连接** → 调用 `RedisConnection.get_client()`
-2. **初始化协调器** → 创建 `DistributedCoordinator` 实例
-3. **启动监听器** → 调用 `listen_commands()`、`listen_heartbeats()` 等方法
-4. **开始通信** → 调用 `publish()` 方法发送消息
+1. **初始化协调器** → 创建 `DistributedCoordinator` 实例
+1. **启动监听器** → 调用 `listen_commands()`、`listen_heartbeats()` 等方法
+1. **开始通信** → 调用 `publish()` 方法发送消息
 
 ### 命令发布和处理流程
 
 1. **Master 节点发布命令** → 调用 `publish("command", data, worker_id, command=command)`
-2. **Worker 节点接收命令** → `listen_commands()` 监听到命令
-3. **Worker 节点处理命令** → 调用命令处理函数
-4. **Worker 节点响应** → 调用 `publish("command", data, command=response_command)`
-5. **Master 节点接收响应** → `listen_commands()` 监听到响应
+1. **Worker 节点接收命令** → `listen_commands()` 监听到命令
+1. **Worker 节点处理命令** → 调用命令处理函数
+1. **Worker 节点响应** → 调用 `publish("command", data, command=response_command)`
+1. **Master 节点接收响应** → `listen_commands()` 监听到响应
 
 ### 指标数据传输流程
 
 1. **Worker 节点收集指标** → 收集请求指标数据
-2. **Worker 节点发布指标** → 调用 `publish("request_metrics", batch_data, worker_id=worker_id)`
-3. **Master 节点接收指标** → `listen_request_metrics()` 监听到指标数据
-4. **Master 节点处理指标** → 调用指标处理回调函数
+1. **Worker 节点发布指标** → 调用 `publish("request_metrics", batch_data, worker_id=worker_id)`
+1. **Master 节点接收指标** → `listen_request_metrics()` 监听到指标数据
+1. **Master 节点处理指标** → 调用指标处理回调函数
 
 ### 心跳监控流程
 
 1. **Worker 节点发送心跳** → 定期调用 `publish("heartbeat", heartbeat_data)`
-2. **Master 节点检查心跳** → `listen_heartbeats()` 定期检查 Worker 心跳
-3. **Master 节点更新状态** → 根据心跳数据更新 Worker 状态
-4. **Master 节点处理超时** → 对超时的 Worker 节点进行处理
+1. **Master 节点检查心跳** → `listen_heartbeats()` 定期检查 Worker 心跳
+1. **Master 节点更新状态** → 根据心跳数据更新 Worker 状态
+1. **Master 节点处理超时** → 对超时的 Worker 节点进行处理
 
 ## 流程图
 
@@ -193,7 +201,7 @@ flowchart TD
 ## 配置参数
 
 | 配置项 | 类型 | 默认值 | 说明 | 适用场景 |
-|-------|------|-------|------|---------|
+| ----- | ---- | ----- | ---- | ----- --|
 | `HEARTBEAT_INTERVAL` | `float` | 1.0 | 心跳监控时间间隔（秒） | 调整监控精度和系统开销 |
 | `HEARTBEAT_LIVENESS` | `int` | 3 | 心跳存活检查次数 | 调整容错能力 |
 | `MAX_BATCH_SIZE` | `int` | 1000 | 最大批量传输大小 | 控制单次传输数据量，防止消息过大 |
@@ -319,19 +327,19 @@ async with await DistributedLock.with_lock(redis_client, "resource_name") as loc
 ## 性能优化建议
 
 1. **批量数据传输**：对于高并发场景，使用 `request_metrics` 频道进行批量数据传输，减少网络开销。系统会自动将大数据集拆分成多个小批次（每批最多 `MAX_BATCH_SIZE` 条），避免单条消息过大导致的性能问题。
-2. **心跳监控优化**：使用 `SCAN` 命令替代 `KEYS` 命令检查 Worker 心跳，避免阻塞 Redis 服务器。`SCAN` 采用增量迭代方式，每次处理固定数量的 key，适合生产环境使用。
-3. **心跳间隔调整**：根据网络状况和系统负载调整 `HEARTBEAT_INTERVAL`，平衡监控精度和系统开销
-4. **消息处理优化**：在命令处理器中使用异步处理，避免阻塞事件循环
-5. **错误处理**：实现适当的错误处理和重试机制，提高系统可靠性
-6. **连接管理**：使用 `RedisConnection` 类管理连接池，避免频繁创建和关闭连接
-7. **批量大小调优**：根据实际网络环境和 Redis 性能调整 `MAX_BATCH_SIZE`，在高延迟网络中可适当减小该值
+1. **心跳监控优化**：使用 `SCAN` 命令替代 `KEYS` 命令检查 Worker 心跳，避免阻塞 Redis 服务器。`SCAN` 采用增量迭代方式，每次处理固定数量的 key，适合生产环境使用。
+1. **心跳间隔调整**：根据网络状况和系统负载调整 `HEARTBEAT_INTERVAL`，平衡监控精度和系统开销
+1. **消息处理优化**：在命令处理器中使用异步处理，避免阻塞事件循环
+1. **错误处理**：实现适当的错误处理和重试机制，提高系统可靠性
+1. **连接管理**：使用 `RedisConnection` 类管理连接池，避免频繁创建和关闭连接
+1. **批量大小调优**：根据实际网络环境和 Redis 性能调整 `MAX_BATCH_SIZE`，在高延迟网络中可适当减小该值
 
 ## 故障排查
 
 ### 常见问题
 
 | 问题 | 可能原因 | 解决方案 |
-|------|---------|---------|
+| ---- | ----- --| ----- --|
 | 命令发布失败 | Redis 连接异常 | 检查 Redis 服务状态和连接参数 |
 | 命令接收不到 | 频道订阅错误或网络问题 | 检查频道配置和网络连接 |
 | 心跳检测失败 | Worker 节点异常或网络问题 | 检查 Worker 节点状态和网络连接 |

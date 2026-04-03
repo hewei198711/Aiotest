@@ -1,0 +1,36 @@
+global:
+  scrape_interval: 1m # 默认抓取间隔：1分钟
+  evaluation_interval: 1m # 规则评估间隔：1分钟
+
+scrape_configs:
+  # Prometheus自监控
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]
+        labels:
+          instance: 'prometheus-server'
+
+  # 主机资源监控
+  - job_name: "node-exporter"
+    static_configs:
+      - targets:
+          - "122.16.40.21:9100"
+          - "122.16.40.22:9100"
+          - "122.16.40.23:9100"
+          - "122.16.40.24:9100"
+          - "122.16.40.25:9100"
+        labels:
+          environment: 'test'
+          group: 'performance-hosts'
+
+  # 负载测试应用监控
+  - job_name: 'aiotest_metrics'
+    scrape_interval: 5s  # 高频抓取
+    static_configs:
+      - targets:
+          - "122.16.40.24:8089"
+          - "122.16.30.145:8089" # 工作电脑调试用
+        labels:
+          instance: 'aiotest-instances'
+          app: 'load-test'
+          environment: 'test'

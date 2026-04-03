@@ -1,0 +1,20 @@
+# .dockerignore
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info
+dist
+build
+.pytest_cache
+allure-results
+allure-report
+logs
+.git
+.github
+docs
+examples
+tests

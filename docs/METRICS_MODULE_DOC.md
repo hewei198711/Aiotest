@@ -1,47 +1,49 @@
 # AioTest 性能指标模块文档
 
+<!-- markdownlint-disable MD024 -->
+
 ## 目录
 
-- [AioTest 性能指标模块文档](#aiotest-性能指标模块文档)
-  - [目录](#目录)
-  - [概述](#概述)
-  - [核心功能](#核心功能)
-  - [数据结构类](#数据结构类)
-    - [`RequestMetrics` 数据类](#requestmetrics-数据类)
-  - [Prometheus 指标定义](#prometheus-指标定义)
-    - [REQUEST\_COUNTER 指标详细说明](#request_counter-指标详细说明)
-    - [ERROR\_COUNTER 指标详细说明](#error_counter-指标详细说明)
-  - [核心类：MetricsCollector](#核心类metricscollector)
-    - [初始化方法](#初始化方法)
-    - [方法说明](#方法说明)
-  - [全局函数](#全局函数)
-  - [调用逻辑流程](#调用逻辑流程)
-    - [初始化流程](#初始化流程)
-    - [请求处理流程](#请求处理流程)
-    - [节点指标处理流程](#节点指标处理流程)
-    - [停止流程](#停止流程)
-  - [流程图](#流程图)
-    - [整体架构流程](#整体架构流程)
-    - [Worker 节点数据流程](#worker-节点数据流程)
-    - [指标收集与导出流程](#指标收集与导出流程)
-  - [配置参数](#配置参数)
-  - [machine\_id 说明](#machine_id-说明)
-    - [作用](#作用)
-    - [获取方式](#获取方式)
-    - [使用场景](#使用场景)
-    - [Prometheus 查询示例](#prometheus-查询示例)
-  - [使用示例](#使用示例)
-    - [初始化和启动](#初始化和启动)
-    - [记录节点指标](#记录节点指标)
-    - [触发请求指标事件](#触发请求指标事件)
-    - [停止收集器](#停止收集器)
-  - [性能优化建议](#性能优化建议)
-  - [故障排查](#故障排查)
-    - [常见问题](#常见问题)
-    - [日志分析](#日志分析)
-  - [总结](#总结)
+- [AioTest 性能指标模块文档](#aiotest-%E6%80%A7%E8%83%BD%E6%8C%87%E6%A0%87%E6%A8%A1%E5%9D%97%E6%96%87%E6%A1%A3)
+  - [目录](#%E7%9B%AE%E5%BD%95)
+  - [概述](#%E6%A6%82%E8%BF%B0)
+  - [核心功能](#%E6%A0%B8%E5%BF%83%E5%8A%9F%E8%83%BD)
+  - [数据结构类](#%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84%E7%B1%BB)
+    - [`RequestMetrics` 数据类](#requestmetrics-%E6%95%B0%E6%8D%AE%E7%B1%BB)
+  - [Prometheus 指标定义](#prometheus-%E6%8C%87%E6%A0%87%E5%AE%9A%E4%B9%89)
+    - [REQUEST_COUNTER 指标详细说明](#request_counter-%E6%8C%87%E6%A0%87%E8%AF%A6%E7%BB%86%E8%AF%B4%E6%98%8E)
+    - [ERROR_COUNTER 指标详细说明](#error_counter-%E6%8C%87%E6%A0%87%E8%AF%A6%E7%BB%86%E8%AF%B4%E6%98%8E)
+  - [核心类：MetricsCollector](#%E6%A0%B8%E5%BF%83%E7%B1%BBmetricscollector)
+    - [初始化方法](#%E5%88%9D%E5%A7%8B%E5%8C%96%E6%96%B9%E6%B3%95)
+    - [方法说明](#%E6%96%B9%E6%B3%95%E8%AF%B4%E6%98%8E)
+  - [全局函数](#%E5%85%A8%E5%B1%80%E5%87%BD%E6%95%B0)
+  - [调用逻辑流程](#%E8%B0%83%E7%94%A8%E9%80%BB%E8%BE%91%E6%B5%81%E7%A8%8B)
+    - [初始化流程](#%E5%88%9D%E5%A7%8B%E5%8C%96%E6%B5%81%E7%A8%8B)
+    - [请求处理流程](#%E8%AF%B7%E6%B1%82%E5%A4%84%E7%90%86%E6%B5%81%E7%A8%8B)
+    - [节点指标处理流程](#%E8%8A%82%E7%82%B9%E6%8C%87%E6%A0%87%E5%A4%84%E7%90%86%E6%B5%81%E7%A8%8B)
+    - [停止流程](#%E5%81%9C%E6%AD%A2%E6%B5%81%E7%A8%8B)
+  - [流程图](#%E6%B5%81%E7%A8%8B%E5%9B%BE)
+    - [整体架构流程](#%E6%95%B4%E4%BD%93%E6%9E%B6%E6%9E%84%E6%B5%81%E7%A8%8B)
+    - [Worker 节点数据流程](#worker-%E8%8A%82%E7%82%B9%E6%95%B0%E6%8D%AE%E6%B5%81%E7%A8%8B)
+    - [指标收集与导出流程](#%E6%8C%87%E6%A0%87%E6%94%B6%E9%9B%86%E4%B8%8E%E5%AF%BC%E5%87%BA%E6%B5%81%E7%A8%8B)
+  - [配置参数](#%E9%85%8D%E7%BD%AE%E5%8F%82%E6%95%B0)
+  - [machine_id 说明](#machine_id-%E8%AF%B4%E6%98%8E)
+    - [作用](#%E4%BD%9C%E7%94%A8)
+    - [获取方式](#%E8%8E%B7%E5%8F%96%E6%96%B9%E5%BC%8F)
+    - [使用场景](#%E4%BD%BF%E7%94%A8%E5%9C%BA%E6%99%AF)
+    - [Prometheus 查询示例](#prometheus-%E6%9F%A5%E8%AF%A2%E7%A4%BA%E4%BE%8B)
+  - [使用示例](#%E4%BD%BF%E7%94%A8%E7%A4%BA%E4%BE%8B)
+    - [初始化和启动](#%E5%88%9D%E5%A7%8B%E5%8C%96%E5%92%8C%E5%90%AF%E5%8A%A8)
+    - [记录节点指标](#%E8%AE%B0%E5%BD%95%E8%8A%82%E7%82%B9%E6%8C%87%E6%A0%87)
+    - [触发请求指标事件](#%E8%A7%A6%E5%8F%91%E8%AF%B7%E6%B1%82%E6%8C%87%E6%A0%87%E4%BA%8B%E4%BB%B6)
+    - [停止收集器](#%E5%81%9C%E6%AD%A2%E6%94%B6%E9%9B%86%E5%99%A8)
+  - [性能优化建议](#%E6%80%A7%E8%83%BD%E4%BC%98%E5%8C%96%E5%BB%BA%E8%AE%AE)
+  - [故障排查](#%E6%95%85%E9%9A%9C%E6%8E%92%E6%9F%A5)
+    - [常见问题](#%E5%B8%B8%E8%A7%81%E9%97%AE%E9%A2%98)
+    - [日志分析](#%E6%97%A5%E5%BF%97%E5%88%86%E6%9E%90)
+  - [总结](#%E6%80%BB%E7%BB%93)
 
----
+______________________________________________________________________
 
 ## 概述
 
@@ -58,11 +60,13 @@
 ## 数据结构类
 
 ### `RequestMetrics` 数据类
+
 **作用**：定义单个 HTTP 请求的完整指标数据结构
 
 **字段说明**：
+
 | 字段名 | 类型 | 默认值 | 说明 |
-|-------|------|-------|------|
+| ----- | ---- | ----- | ---- |
 | `request_id` | `str` | 必填 | 请求唯一标识符 |
 | `method` | `str` | 必填 | HTTP 方法（GET/POST/PUT/DELETE 等） |
 | `endpoint` | `str` | 必填 | 请求端点路径 |
@@ -77,7 +81,7 @@
 ## Prometheus 指标定义
 
 | 指标名称 | 类型 | 描述 | 标签 |
-|---------|------|------|------|
+| ------- | ---- | ---- | ---- |
 | `REQUEST_COUNTER` | `Counter` | HTTP 请求总数 | `method`, `endpoint`, `status_code`, `assertion_result` |
 | `REQUEST_DURATION` | `Histogram` | HTTP 请求响应时间 | `method`, `endpoint` |
 | `RESPONSE_SIZE` | `Histogram` | HTTP 响应体大小 | `method`, `endpoint` |
@@ -88,6 +92,7 @@
 ### REQUEST_COUNTER 指标详细说明
 
 **指标定义**：
+
 ```python
 REQUEST_COUNTER = Counter(
     'aiotest_http_requests_total',
@@ -100,7 +105,7 @@ REQUEST_COUNTER = Counter(
 **标签说明**：
 
 | 标签名 | 类型 | 说明 | 示例值 |
-|-------|------|------|-------|
+| ----- | ---- | ---- | ----- |
 | `method` | `str` | HTTP 请求方法 | `"GET"`, `"POST"`, `"PUT"`, `"DELETE"` |
 | `endpoint` | `str` | 请求端点路径（已标准化） | `"/api/users/{id}"`, `"/api/login"` |
 | `status_code` | `str` | HTTP 状态码（字符串形式） | `"200"`, `"400"`, `"404"`, `"500"` |
@@ -109,7 +114,7 @@ REQUEST_COUNTER = Counter(
 **assertion_result 标签取值说明**：
 
 | 取值 | 说明 | 触发条件 |
-|------|------|---------|
+| ---- | ---- | ------- |
 | `"pass"` | 断言成功 | 在 `ResponseContextManager` 上下文中，所有断言都通过，没有抛出异常 |
 | `"fail"` | 断言失败 | 在 `ResponseContextManager` 上下文中，断言失败或抛出异常 |
 | `"unknown"` | 未知状态 | 默认值，通常不会出现，除非代码逻辑有误 |
@@ -117,13 +122,16 @@ REQUEST_COUNTER = Counter(
 **重要特性**：
 
 1. **断言结果与 HTTP 状态码独立**：
+
    - 即使 HTTP 状态码是 400 或 500，只要断言成功，`assertion_result` 会被设置为 `"pass"`
    - 即使 HTTP 状态码是 200，只要断言失败，`assertion_result` 会被设置为 `"fail"`
 
-2. **原始状态码保留**：
+1. **原始状态码保留**：
+
    - `status_code` 标签始终记录原始的 HTTP 状态码，不会因为断言结果而改变
 
-3. **使用场景**：
+1. **使用场景**：
+
    - 通过断言结果判断业务逻辑是否成功，而不是仅仅依赖 HTTP 状态码
    - 支持自定义的成功/失败判定逻辑
 
@@ -152,6 +160,7 @@ sum(aiotest_http_requests_total{assertion_result="fail"}) / sum(aiotest_http_req
 ### ERROR_COUNTER 指标详细说明
 
 **指标定义**：
+
 ```python
 ERROR_COUNTER = Counter(
     'aiotest_errors_total',
@@ -164,7 +173,7 @@ ERROR_COUNTER = Counter(
 **标签说明**：
 
 | 标签名 | 类型 | 说明 | 示例值 |
-|-------|------|------|-------|
+| ----- | ---- | ---- | ----- |
 | `error_type` | `str` | 错误类型（异常类名） | `"AssertionError"`, `"TimeoutError"`, `"ConnectionError"`, `"ClientError"` |
 | `method` | `str` | HTTP 请求方法 | `"GET"`, `"POST"`, `"PUT"`, `"DELETE"` |
 | `endpoint` | `str` | 请求端点路径（已标准化） | `"/api/users/{id}"`, `"/api/login"` |
@@ -174,7 +183,7 @@ ERROR_COUNTER = Counter(
 **error_type 标签取值说明**：
 
 | 取值 | 说明 | 触发条件 |
-|------|------|---------|
+| ---- | ---- | ------- |
 | `"AssertionError"` | 断言失败 | 在 `ResponseContextManager` 上下文中，断言失败或抛出 `AssertionError` |
 | `"TimeoutError"` | 请求超时 | 请求超时，抛出 `asyncio.TimeoutError` 或 `aiohttp.ClientTimeoutError` |
 | `"ConnectionError"` | 连接错误 | 网络连接失败，抛出 `aiohttp.ClientConnectionError` |
@@ -185,7 +194,7 @@ ERROR_COUNTER = Counter(
 **status_code 标签取值说明**：
 
 | 取值范围 | 说明 | 示例 |
-|---------|------|------|
+| ------- | ---- | ---- |
 | `"2xx"` | 成功响应 | `"200"`, `"201"`, `"204"` |
 | `"3xx"` | 重定向 | `"301"`, `"302"`, `"304"` |
 | `"4xx"` | 客户端错误 | `"400"`, `"401"`, `"403"`, `"404"` |
@@ -195,7 +204,7 @@ ERROR_COUNTER = Counter(
 **error_message 标签取值说明**：
 
 | 内容 | 说明 | 示例 |
-|------|------|------|
+| ---- | ---- | ---- |
 | 错误描述 | 简短描述错误原因 | `"Connection refused"`, `"Request timeout"` |
 | 断言消息 | 断言失败时的消息 | `"Assertion failed: expected 200, got 404"` |
 | 响应数据 | 包含接口的响应数据（限制500字符） | `"Connection refused \| Response: {\"error\":\"service unavailable\"}"` |
@@ -203,18 +212,22 @@ ERROR_COUNTER = Counter(
 **重要特性**：
 
 1. **错误消息长度限制**：
+
    - `error_message` 标签限制为 200 字符，避免过长
    - 如果错误消息超过 200 字符，会被截断
 
-2. **响应数据附加**：
+1. **响应数据附加**：
+
    - 错误消息中会包含接口的响应数据（如果有）
    - 响应数据限制为 500 字符，避免过长
 
-3. **错误分类**：
+1. **错误分类**：
+
    - 通过 `error_type` 标签提供详细的错误分类
    - 便于在 Grafana 中按错误类型进行统计和分析
 
-4. **与 REQUEST_COUNTER 的关系**：
+1. **与 REQUEST_COUNTER 的关系**：
+
    - `ERROR_COUNTER` 记录所有错误（包括断言失败、网络错误、HTTP 错误等）
    - `REQUEST_COUNTER` 记录所有请求（包括成功和失败）
    - 通过 `assertion_result="fail"` 标签可以统计所有失败的请求
@@ -253,13 +266,16 @@ sum(aiotest_errors_total) / sum(aiotest_http_requests_total) * 100
 ## 核心类：MetricsCollector
 
 ### 初始化方法
+
 ```python
 def __init__(self, node_type: str = "local", redis_client=None, node_id: str = "local", coordinator=None, 
              batch_size: int = 100, flush_interval: float = 1.0, buffer_size: int = 10000)
 ```
+
 **作用**：初始化指标收集器实例，配置节点类型和批量上传参数
 
 **参数说明**：
+
 - `node_type`：节点类型（local/master/worker）
 - `redis_client`：Redis 客户端实例
 - `node_id`：节点唯一标识符
@@ -271,7 +287,7 @@ def __init__(self, node_type: str = "local", redis_client=None, node_id: str = "
 ### 方法说明
 
 | 方法名 | 作用 | 参数 | 返回值 | 调用时机 |
-|-------|------|------|-------|---------|
+| ----- | ---- | ---- | ----- | ------- |
 | `start()` | 启动指标收集器 | 无 | `None` | 运行器初始化时 |
 | `stop()` | 停止指标收集器 | 无 | `None` | 运行器停止时 |
 | `record_node_metrics(metrics_data)` | 记录节点指标数据 | `metrics_data: dict` | `None` | 定期调用（Local/Master 节点） |
@@ -287,7 +303,7 @@ def __init__(self, node_type: str = "local", redis_client=None, node_id: str = "
 ## 全局函数
 
 | 函数名 | 作用 | 参数 | 返回值 | 调用时机 |
-|-------|------|------|-------|---------|
+| ----- | ---- | ---- | ----- | ------- |
 | `get_unified_collector()` | 获取统一的指标收集器实例 | 无 | `MetricsCollector` | 需要使用收集器时 |
 | `init_unified_collector(node_type, redis_client, node_id, coordinator, batch_size, flush_interval, buffer_size)` | 初始化统一的指标收集器 | 见方法签名 | `MetricsCollector` | 运行器初始化时 |
 | `is_unified_collector_initialized()` | 检查统一指标收集器是否已初始化 | 无 | `bool` | 检查收集器状态时 |
@@ -297,37 +313,44 @@ def __init__(self, node_type: str = "local", redis_client=None, node_id: str = "
 ### 初始化流程
 
 1. **运行器初始化** → 调用 `init_unified_collector()`
-2. **创建收集器实例** → 初始化 `MetricsCollector`
-3. **启动收集器** → 调用 `start()` 方法
-4. **注册事件处理器** → 调用 `_register_event_handlers()`
-5. **启动刷新任务** → Worker 节点创建 `_flush_buffer()` 任务
+1. **创建收集器实例** → 初始化 `MetricsCollector`
+1. **启动收集器** → 调用 `start()` 方法
+1. **注册事件处理器** → 调用 `_register_event_handlers()`
+1. **启动刷新任务** → Worker 节点创建 `_flush_buffer()` 任务
 
 ### 请求处理流程
 
 1. **HTTP 请求发生** → 客户端捕获请求
-2. **触发事件** → 触发 `request_metrics` 事件
-3. **处理事件** → `process_request_metrics()` 被调用
-4. **根据节点类型处理**：
+
+1. **触发事件** → 触发 `request_metrics` 事件
+
+1. **处理事件** → `process_request_metrics()` 被调用
+
+1. **根据节点类型处理**：
+
    - **Local/Master 节点** → 调用 `_report_to_prometheus_from_metrics()` 直接上报到 Prometheus
    - **Worker 节点** → 调用 `_add_metrics_to_buffer()` 添加到本地缓冲区
-5. **Worker 节点批量处理**：
+
+1. **Worker 节点批量处理**：
+
    - 定期调用 `_flush_buffer()`
    - 调用 `_do_flush()` 执行刷新
    - 调用 `_forward_batch_to_redis()` 批量发送到 Redis
-6. **Master 节点接收** → 监听 Redis 消息，处理批量数据
+
+1. **Master 节点接收** → 监听 Redis 消息，处理批量数据
 
 ### 节点指标处理流程
 
 1. **定期收集** → 运行器定期收集节点指标
-2. **记录指标** → 调用 `record_node_metrics()`
-3. **更新 Prometheus** → 更新 `WORKER_CPU_USAGE` 和 `WORKER_ACTIVE_USERS` 指标
+1. **记录指标** → 调用 `record_node_metrics()`
+1. **更新 Prometheus** → 更新 `WORKER_CPU_USAGE` 和 `WORKER_ACTIVE_USERS` 指标
 
 ### 停止流程
 
 1. **运行器停止** → 调用收集器的 `stop()` 方法
-2. **取消刷新任务** → 取消 `_flush_task`
-3. **最后一次刷新** → Worker 节点执行 `_do_flush()`
-4. **记录停止日志** → 记录收集器停止信息
+1. **取消刷新任务** → 取消 `_flush_task`
+1. **最后一次刷新** → Worker 节点执行 `_do_flush()`
+1. **记录停止日志** → 记录收集器停止信息
 
 ## 流程图
 
@@ -395,7 +418,7 @@ flowchart TD
 ## 配置参数
 
 | 配置项 | 类型 | 默认值 | 说明 | 适用场景 |
-|-------|------|-------|------|---------|
+| ----- | ---- | ----- | ---- | ------- |
 | `metrics_collection_interval` | `float` | 5.0 | 节点指标收集间隔（秒） | 调整监控精度和系统开销 |
 | `metrics_batch_size` | `int` | 100 | 批量上传的大小（当数据量不足时，会上传所有可用数据） | 高并发场景下增加批量大小 |
 | `metrics_flush_interval` | `float` | 1.0 | 缓冲区刷新间隔（秒） | 平衡实时性和系统开销 |
@@ -404,12 +427,15 @@ flowchart TD
 ## machine_id 说明
 
 ### 作用
+
 `machine_id` 是机器标识符，用于在分布式测试中区分不同机器上的 Worker 节点。在 `WORKER_CPU_USAGE` 指标中，通过 `machine_id` 标签可以查看不同机器的 CPU 使用率情况。
 
 ### 获取方式
+
 `machine_id` 通过 `socket.gethostname()` 获取机器的主机名作为标识符，确保每台机器有唯一的标识。
 
 ### 使用场景
+
 - **分布式测试**：在多机器部署的分布式测试中，通过 `machine_id` 可以区分不同机器的资源使用情况
 - **资源监控**：可以按机器维度分析 CPU 使用率，识别资源瓶颈
 - **负载均衡**：根据不同机器的 CPU 使用率调整负载分配
@@ -490,17 +516,17 @@ await collector.stop()
 ## 性能优化建议
 
 1. **批量大小调整**：根据系统负载和网络状况调整 `batch_size`，高并发场景下建议增大
-2. **刷新间隔调整**：根据实时性需求调整 `flush_interval`，实时性要求高时减小
-3. **缓冲区大小调整**：根据内存资源和并发量调整 `buffer_size`
-4. **数据收集频率**：根据监控精度需求调整 `metrics_collection_interval`
-5. **错误处理**：确保在网络不稳定时，数据能够正确缓存和重试
+1. **刷新间隔调整**：根据实时性需求调整 `flush_interval`，实时性要求高时减小
+1. **缓冲区大小调整**：根据内存资源和并发量调整 `buffer_size`
+1. **数据收集频率**：根据监控精度需求调整 `metrics_collection_interval`
+1. **错误处理**：确保在网络不稳定时，数据能够正确缓存和重试
 
 ## 故障排查
 
 ### 常见问题
 
 | 问题 | 可能原因 | 解决方案 |
-|------|---------|---------|
+| ---- | ------- | ------- |
 | 指标数据丢失 | 缓冲区满或网络故障 | 增加缓冲区大小，检查网络连接 |
 | 性能下降 | 批量大小过小或刷新间隔过短 | 调整批量大小和刷新间隔 |
 | 内存使用过高 | 缓冲区大小过大 | 适当减小缓冲区大小 |

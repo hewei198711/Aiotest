@@ -4485,8 +4485,8 @@
         "allFormat": "glob",
         "current": {
           "selected": false,
-          "text": "172.16.40.21",
-          "value": "172.16.40.21"
+          "text": "122.16.40.21",
+          "value": "122.16.40.21"
         },
         "datasource": {
           "type": "prometheus",

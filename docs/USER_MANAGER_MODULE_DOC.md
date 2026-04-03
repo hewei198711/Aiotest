@@ -1,19 +1,21 @@
 # AioTest 用户管理器模块文档
 
+<!-- markdownlint-disable MD024 -->
+
 ## 目录
 
-- [概述](#概述)
-- [核心功能](#核心功能)
-- [核心类：UserManager](#核心类-usermanager)
-- [调用逻辑流程](#调用逻辑流程)
-- [流程图](#流程图)
-- [配置参数](#配置参数)
-- [使用示例](#使用示例)
-- [性能优化建议](#性能优化建议)
-- [故障排查](#故障排查)
-- [总结](#总结)
+- [概述](#%E6%A6%82%E8%BF%B0)
+- [核心功能](#%E6%A0%B8%E5%BF%83%E5%8A%9F%E8%83%BD)
+- [核心类：UserManager](#%E6%A0%B8%E5%BF%83%E7%B1%BBusermanager)
+- [调用逻辑流程](#%E8%B0%83%E7%94%A8%E9%80%BB%E8%BE%91%E6%B5%81%E7%A8%8B)
+- [流程图](#%E6%B5%81%E7%A8%8B%E5%9B%BE)
+- [配置参数](#%E9%85%8D%E7%BD%AE%E5%8F%82%E6%95%B0)
+- [使用示例](#%E4%BD%BF%E7%94%A8%E7%A4%BA%E4%BE%8B)
+- [性能优化建议](#%E6%80%A7%E8%83%BD%E4%BC%98%E5%8C%96%E5%BB%BA%E8%AE%AE)
+- [故障排查](#%E6%95%85%E9%9A%9C%E6%8E%92%E6%9F%A5)
+- [总结](#%E6%80%BB%E7%BB%93)
 
----
+______________________________________________________________________
 
 ## 概述
 
@@ -28,22 +30,26 @@
 - ✅ **内存管理** - 定期清理非活跃用户
 - ✅ **批量操作** - 优化的批量用户创建和停止
 
-## 核心类：UserManager
+## 核心类UserManager
 
-#### 初始化方法
+### 初始化方法
+
 ```python
+
 def __init__(self, user_types: List[Type['User']], config: Dict[str, Any])
 ```
+
 **作用**：初始化用户管理器实例，配置用户类型和全局配置
 
 **参数说明**：
+
 - `user_types`：用户类型列表，包含要管理的用户类
 - `config`：全局配置字典，可包含 host 等配置项
 
 #### 方法说明
 
 | 方法名 | 作用 | 参数 | 返回值 | 调用时机 |
-|-------|------|------|-------|---------|
+| ------- | ------ | ------ | ------- | --------- |
 | `distribute_users_by_weight(user_count)` | 基于权重分配用户 | `user_count: int` | `List[Type['User']]` | 创建用户时 |
 | `manage_users(user_count, rate, action)` | 管理用户（启动/停止） | `user_count: int`, `rate: float`, `action: str` | `None` | 需要增减用户时 |
 | `_start_users(user_count, rate)` | 启动用户 | `user_count: int`, `rate: float` | `None` | 内部调用 |
@@ -64,78 +70,84 @@ def __init__(self, user_types: List[Type['User']], config: Dict[str, Any])
 ### 初始化流程
 
 1. **创建用户管理器** → 实例化 `UserManager`，传入用户类型列表和配置
-2. **验证配置** → 验证用户类型的权重属性
+1. **验证配置** → 验证用户类型的权重属性
 
 ### 用户启动流程
 
 1. **分配用户** → 调用 `distribute_users_by_weight` 按权重分配用户
-2. **批量创建** → 调用 `_batch_execute` 批量创建用户
-3. **启动任务** → 调用用户的 `start_tasks` 方法启动任务
-4. **添加到活跃列表** → 将用户添加到 `active_users` 列表
+1. **批量创建** → 调用 `_batch_execute` 批量创建用户
+1. **启动任务** → 调用用户的 `start_tasks` 方法启动任务
+1. **添加到活跃列表** → 将用户添加到 `active_users` 列表
 
 ### 用户停止流程
 
 1. **选择用户** → 调用 `_select_users_to_stop` 按权重比例选择要停止的用户
-2. **批量停止** → 调用 `_batch_execute` 批量停止用户
-3. **停止任务** → 调用用户的 `stop_tasks` 方法停止任务
+1. **批量停止** → 调用 `_batch_execute` 批量停止用户
+1. **停止任务** → 调用用户的 `stop_tasks` 方法停止任务
 
 ### 权重分配流程
 
 1. **验证权重** → 验证每个用户类型的权重属性
-2. **计算比例** → 计算各用户类型的权重比例
-3. **分配数量** → 按比例分配用户数量
-4. **处理误差** → 处理舍入误差，确保总数准确
+1. **计算比例** → 计算各用户类型的权重比例
+1. **分配数量** → 按比例分配用户数量
+1. **处理误差** → 处理舍入误差，确保总数准确
 
 ## 流程图
 
 ### 整体管理流程
 
 ```mermaid
+
 flowchart TD
     A[创建用户管理器] --> B[初始化配置]
     B --> C{操作类型?}
-    C -->|启动用户| D[分配用户]
-    C -->|停止用户| E[选择用户]
+    C -->| 启动用户 |D[分配用户]
+    C -->| 停止用户 |E[选择用户]
     D --> F[批量创建用户]
     E --> G[批量停止用户]
     F --> H[监控活跃用户]
     G --> H
     H --> I{测试结束?}
-    I -->|是| J[停止所有用户]
-    I -->|否| C
+    I -->| 是 |J[停止所有用户]
+    I -->| 否 |C
+
 ```
 
 ### 权重分配流程
 
 ```mermaid
+
 flowchart TD
     A[开始权重分配] --> B[验证权重属性]
     B --> C{单一用户类型?}
-    C -->|是| D[直接分配全部数量]
-    C -->|否| E[计算权重总和]
+    C -->| 是 |D[直接分配全部数量]
+    C -->| 否 |E[计算权重总和]
     E --> F[计算权重比例]
     F --> G[按比例分配数量]
     G --> H[处理舍入误差]
     H --> I[返回分配结果]
     D --> I
+
 ```
 
 ### 用户停止选择流程
 
 ```mermaid
+
 flowchart TD
     A[开始选择用户] --> B[获取活跃用户]
     B --> C{停止数量≥活跃数量?}
-    C -->|是| D[返回所有活跃用户]
-    C -->|否| E{单一用户类型?}
-    E -->|是| F[按启动顺序选择]
-    E -->|否| G[按权重比例选择]
+    C -->| 是 |D[返回所有活跃用户]
+    C -->| 否 |E{单一用户类型?}
+    E -->| 是 |F[按启动顺序选择]
+    E -->| 否 |G[按权重比例选择]
     G --> H[计算各类型应保留数量]
     H --> I[计算各类型应停止数量]
     I --> J[按启动顺序选择]
     F --> K[返回选择结果]
     J --> K
     D --> K
+
 ```
 
 **说明**：用户停止选择流程中，`_select_users_to_stop` 方法会直接计算各类型应保留的用户数量，不再调用单独的 `_calculate_keep_counts_by_weight` 方法，而是直接使用 `_calculate_weighted_counts` 方法进行权重分配计算。
@@ -143,7 +155,7 @@ flowchart TD
 ## 配置参数
 
 | 参数名 | 类型 | 默认值 | 说明 | 适用场景 |
-|-------|------|-------|------|----------|
+| ------- | ------ | ------- | ------ | ---------- |
 | `user_types` | `List[Type['User']]` | 无 | 用户类型列表 | 初始化时必需 |
 | `config` | `Dict[str, Any]` | `{}` | 全局配置 | 可包含 host 等配置 |
 | `user_count` | `int` | 无 | 目标用户数 | 启动/停止时必需 |
@@ -155,19 +167,21 @@ flowchart TD
 ### 基本使用示例
 
 ```python
+
 from aiotest import User, HttpUser
 from aiotest.user_manager import UserManager
 
 # 定义用户类
+
 class TestUser1(User):
     weight = 2  # 权重为2
-    
+
     async def test_task(self):
         print("TestUser1 task executed")
 
 class TestUser2(User):
     weight = 3  # 权重为3
-    
+
     async def test_task(self):
         print("TestUser2 task executed")
 
@@ -176,7 +190,7 @@ async def main():
     user_types = [TestUser1, TestUser2]
     config = {"host": "http://example.com"}
     manager = UserManager(user_types, config)
-    
+
     # 启动10个用户（按2:3比例分配）
     await manager.manage_users(10, 5, "start")
     print(f"活跃用户数: {manager.active_user_count}")
@@ -190,7 +204,7 @@ async def main():
 
     # 清理非活跃用户
     manager.cleanup_inactive_users()
-    
+
     # 停止所有用户
     await manager.stop_all_users()
     print(f"最终活跃用户数: {manager.active_user_count}")
@@ -198,18 +212,20 @@ async def main():
 if __name__ == "__main__":
     import asyncio
     asyncio.run(main())
+
 ```
 
 ### HTTP 用户管理示例
 
 ```python
+
 from aiotest import HttpUser
 from aiotest.user_manager import UserManager
 
 class ApiUser(HttpUser):
     weight = 1
     host = "https://api.example.com"
-    
+
     async def test_get_users(self):
         response = await self.client.get("/users")
         print(f"GET /users: {response.status}")
@@ -217,7 +233,7 @@ class ApiUser(HttpUser):
 class AdminUser(HttpUser):
     weight = 2
     host = "https://api.example.com"
-    
+
     async def test_create_user(self):
         data = {"name": "Test User"}
         response = await self.client.post("/users", json=data)
@@ -228,40 +244,46 @@ async def main():
     user_types = [ApiUser, AdminUser]
     config = {}
     manager = UserManager(user_types, config)
-    
+
     # 启动6个用户（2个ApiUser, 4个AdminUser）
     await manager.manage_users(6, 3, "start")
-    
+
     # 运行测试
     await asyncio.sleep(10)
-    
+
     # 停止所有用户
     await manager.stop_all_users()
 
 if __name__ == "__main__":
     import asyncio
     asyncio.run(main())
+
 ```
 
 ## 性能优化建议
 
 1. **权重设置**：
+
    - 根据业务重要性设置合理的用户权重
    - 避免权重值过大导致分配不均
 
-2. **速率控制**：
+1. **速率控制**：
+
    - 根据系统性能设置合适的启动/停止速率
    - 启动速率过快可能导致系统负载突增
 
-3. **批量操作**：
+1. **批量操作**：
+
    - 利用 `_batch_execute` 的速率控制功能
    - 避免一次性创建/停止大量用户
 
-4. **内存管理**：
+1. **内存管理**：
+
    - 定期调用 `cleanup_inactive_users()` 清理非活跃用户
    - 避免内存泄漏
 
-5. **监控**：
+1. **监控**：
+
    - 使用 `active_user_count` 监控活跃用户数量
    - 确保按权重正确分配用户
 
@@ -270,7 +292,7 @@ if __name__ == "__main__":
 ### 常见问题
 
 | 问题 | 可能原因 | 解决方案 |
-|------|---------|---------|
+| ------ | --------- | --------- |
 | 权重分配不均 | 权重设置不合理 | 调整用户权重比例 |
 | 启动失败 | 用户类缺少必要属性 | 确保用户类有正确的权重属性 |
 | 停止后仍有活跃用户 | 任务未正确停止 | 检查用户的 `stop_tasks` 方法 |

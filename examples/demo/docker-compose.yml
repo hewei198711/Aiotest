@@ -1,0 +1,144 @@
+services:
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    user: root
+    restart: unless-stopped
+    ports:
+    - 9090:9090
+    environment:
+      - TZ=Asia/Shanghai
+    command:
+    - --config.file=/etc/prometheus/prometheus.yml
+    volumes:
+    - $PWD/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    - ../prometheus_data:/prometheus
+    depends_on:
+    - cadvisor
+    extra_hosts:
+    - "host.docker.internal:host-gateway"  # 允许容器访问宿主机
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    user: root
+    restart: unless-stopped
+    ports:
+    - 3000:3000
+    environment:
+      - GF_INSTALL_PLUGINS=grafana-clock-panel,grafana-piechart-panel,grafana-worldmap-panel,grafana-polystat-panel
+      - GF_USERS_DEFAULT_LANGUAGE=zh-CN
+      - GF_DATE_FORMATS_USE_BROWSER_LOCALE=true
+      - GF_ALERTING_ENABLED=true
+      - GF_UNIFIED_ALERTING_ENABLED=true
+      - TZ=Asia/Shanghai
+    volumes:
+    - ../grafana_data:/var/lib/grafana
+    - ./provisioning:/etc/grafana/provisioning:ro
+    depends_on:
+    - prometheus
+
+  redis:
+    image: redis/redis-stack-server:latest
+    container_name: redis
+    user: root
+    restart: unless-stopped
+    environment:
+      - TZ=Asia/Shanghai
+    volumes:
+    - ../redis_data/:/data
+    ports:
+    - 6379:6379
+    command: ["redis-server", "--requirepass", "test123456"]
+
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: node-exporter
+    user: root
+    restart: unless-stopped
+    environment:
+      - TZ=Asia/Shanghai
+    volumes:
+    - /proc:/host/proc:ro
+    - /sys:/host/sys:ro
+    - /:/rootfs:ro
+    command:
+    - '--path.procfs=/host/proc'
+    - '--path.rootfs=/rootfs'
+    - '--path.sysfs=/host/sys'
+    - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    ports:
+    - 9100:9100
+
+  cadvisor:
+    image: zcube/cadvisor:latest
+    container_name: cadvisor
+    user: root
+    restart: unless-stopped
+    environment:
+      - TZ=Asia/Shanghai
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    ports:
+      - "8081:8080"
+    networks:
+      - monitoring
+
+  master:
+    build: .
+    image: aiotest:latest
+    ports:
+     - "8089:8089"
+    volumes:
+      - .:/app
+    pid: host  # 允许访问宿主机的进程信息
+    user: "1000:1000"  # 使用aiotest用户(UID:1000)
+    environment:
+      - TZ=Asia/Shanghai
+    command: aiotest -f aiotestfile.py --master --expect-workers 1 --redis-path 122.16.40.24 --redis-port 6379 --redis-password test123456
+
+  worker:
+    build: .
+    image: aiotest:latest
+    volumes:
+      - .:/app
+    pid: host  # 允许访问宿主机的进程信息
+    user: "1000:1000"  # 使用aiotest用户(UID:1000)
+    environment:
+      - TZ=Asia/Shanghai
+    command: aiotest -f aiotestfile.py --worker --redis-path 122.16.40.24 --redis-port 6379 --redis-password test123456 --loglevel WARNING
+    deploy:
+      replicas: 4
+
+  local:
+    build: .
+    image: aiotest:latest
+    ports:
+     - "8089:8089"
+    volumes:
+      - .:/app
+    pid: host  # 允许访问宿主机的进程信息
+    user: "1000:1000"  # 使用aiotest用户(UID:1000)
+    environment:
+      - TZ=Asia/Shanghai
+    command: aiotest -f aiotestfile.py --redis-path 122.16.40.24 --redis-port 6379 --redis-password test123456 --loglevel WARNING
+
+networks:
+  monitoring:
+    driver: bridge
+
+volumes:
+  prometheus_data:
+  grafana_data:
+  redis_data:
+
+# docker compose up -d master 启动master容器
+# docker compose up -d worker --scale worker=4 启动4个worker容器
+# docker compose up -d local 启动local容器
+# docker compose stop master 停止master容器
+# docker compose stop worker 停止worker容器
+# docker compose stop local 停止local容器

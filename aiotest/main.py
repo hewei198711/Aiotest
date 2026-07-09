@@ -94,9 +94,9 @@ async def main():
             )
 
     # 显示用户权重
-    if options.show_users_wight:
-        user_wight = {user.__name__: user.weight for user in user_classes}
-        pprint(user_wight)
+    if options.show_users_weight:
+        user_weight = {user.__name__: user.weight for user in user_classes}
+        pprint(user_weight)
         sys.exit(0)
 
     # 使用局部变量替代全局变量

@@ -4,8 +4,8 @@ import sys
 import asyncio
 
 # 检查Python版本
-if sys.version_info < (3, 9):
-    print("错误：AioTest 需要 Python 3.9 或更高版本。")
+if sys.version_info < (3, 11):
+    print("错误：AioTest 需要 Python 3.11 或更高版本。")
     print(f"您正在使用 Python {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}")
     sys.exit(1)
 

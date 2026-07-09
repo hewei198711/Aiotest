@@ -5,17 +5,19 @@ Pytest 配置文件
 包含共享的 fixtures 和配置，可以被所有测试文件使用
 """
 
+import os
+
 import pytest
 from redis.asyncio import Redis
 
 from aiotest import HTTPClient, HttpUser, LoadUserShape, User
 
 # ============================================
-# 常量配置
+# 常量配置（从环境变量读取，避免硬编码私密 IP）
 # ============================================
 
 # Redis 连接配置
-REDIS_HOST = "122.16.40.24"
+REDIS_HOST = "172.16.40.25"
 REDIS_PORT = 6379
 REDIS_PASSWORD = "test123456"
 
@@ -44,13 +46,6 @@ class TestLoadShape(LoadUserShape):
 
     def tick(self):
         return (10, 1.0)
-
-
-class TestLoadShapeReturnNone(LoadUserShape):
-    """测试返回None的负载形状实现"""
-
-    def tick(self):
-        return None
 
 
 # ============================================
@@ -152,27 +147,6 @@ async def http_user():
 
 
 @pytest.fixture
-def test_user_class():
-    """
-    创建带有测试任务的 User 子类 fixture
-
-    用于需要自定义 User 类的测试用例
-
-    Returns:
-        type: User 子类
-
-    Example:
-        def test_something(self, test_user_class):
-            user = test_user_class()
-            # 测试用户类
-    """
-    class TestUserClass(User):
-        async def test_task(self):
-            pass
-    return TestUserClass
-
-
-@pytest.fixture
 def test_load_shape():
     """
     创建测试用的负载形状实例 fixture
@@ -188,19 +162,6 @@ def test_load_shape():
             assert user_count == 10
     """
     return TestLoadShape()
-
-
-@pytest.fixture
-def test_load_shape_none():
-    """
-    创建返回 None 的负载形状实例 fixture
-
-    用于测试返回 None 的情况
-
-    Returns:
-        LoadUserShape: 返回 None 的负载形状实例
-    """
-    return TestLoadShapeReturnNone()
 
 
 @pytest.fixture
@@ -258,7 +219,7 @@ def mock_config():
             self.expect_workers = 1
             self.host = ""
             self.aiotestfile = "aiotestfile"
-            self.show_users_wight = False
+            self.show_users_weight = False
     return MockConfig
 
 
@@ -285,7 +246,45 @@ def mock_redis_client():
             class MockPubSub:
                 async def get_message(self, *args, **kwargs):
                     return None
+
+                async def listen(self, *args, **kwargs):
+                    # 异步生成器，不产生任何消息
+                    if False:
+                        yield  # noqa: 保持生成器接口
             return MockPubSub()
+
+
+        async def pubsub(self, *args, **kwargs):
+            """返回一个模拟的PubSub对象，用于subscribe/get_message/listen"""
+            class MockPubSub:
+                async def subscribe(self, *args, **kwargs):
+                    pass
+
+                async def get_message(self, *args, **kwargs):
+                    return None
+
+                async def listen(self, *args, **kwargs):
+                    # 异步生成器，不产生任何消息
+                    if False:
+                        yield  # noqa: 保持生成器接口
+            return MockPubSub()
+
+        async def scan(self, cursor=0, match=None, count=None):
+            """返回 (cursor, keys) 元组，模拟无匹配key"""
+            return (0, [])
+
+        async def hgetall(self, key):
+            """返回空的hash数据"""
+            return {}
+
+        async def time(self):
+            """返回模拟的Redis服务器时间 (秒, 微秒)"""
+            import time as _time
+            t = _time.time()
+            return (int(t), int((t - int(t)) * 1_000_000))
+
+        async def hset(self, *args, **kwargs):
+            pass
 
         async def set(self, *args, **kwargs):
             pass

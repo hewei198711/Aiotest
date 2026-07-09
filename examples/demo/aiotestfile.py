@@ -11,17 +11,15 @@ from aiotest import (DistributedLock, HttpUser, LoadUserShape, RedisConnection,
                      logger)
 from aiotest.cli import parse_options
 
-# 获取命令行参数
-options = parse_options()
-
-# Redis 连接配置
-REDIS_PATH = options.redis_path
-REDIS_PORT = options.redis_port
-REDIS_PASSWORD = options.redis_password
-
 # 全局 Redis 连接
 redis_client = None
 redis_connection = None
+
+
+def _get_redis_config():
+    """延迟获取 Redis 配置，避免模块导入时解析命令行参数"""
+    options = parse_options()
+    return options.redis_path, options.redis_port, options.redis_password
 
 
 async def initialize_redis():
@@ -30,10 +28,11 @@ async def initialize_redis():
     if redis_client is None:
         if redis_connection is None:
             redis_connection = RedisConnection()
+        redis_path, redis_port, redis_password = _get_redis_config()
         redis_client = await redis_connection.get_client(
-            path=REDIS_PATH,
-            port=REDIS_PORT,
-            password=REDIS_PASSWORD
+            path=redis_path,
+            port=redis_port,
+            password=redis_password
         )
         logger.info("Redis connection initialized")
     return redis_client
@@ -87,23 +86,25 @@ class TestUser(HttpUser):
         # 使用分布式锁确保并发安全（确保多个 Worker 节点不会同时操作同一个用户）
         lock_key = f"lock:{self.card_number}"
         async with await DistributedLock.with_lock(self.redis, lock_key, timeout=10) as lock:
-            if lock.locked:
-                # 获取用户基本信息
-                user_data = await self.redis.hget(self.user_details_key, self.card_number)
-                if not user_data:
-                    logger.error(f"用户 {self.card_number} 不存在")
-                    return
+            if not lock.locked:
+                logger.warning(f"获取分布式锁超时，跳过用户 {self.card_number}")
+                return
 
-                # 处理用户数据
-                self.user_info = json.loads(user_data)
-                # 根据实际存储的字段构建 headers
-                self.headers = {
-                    "Authorization": f'bearer {self.user_info["token"]}',
-                    "User-ID": self.user_info["id"],
-                    "Card-Number": self.card_number
-                }
+            # 获取用户基本信息
+            user_data = await self.redis.hget(self.user_details_key, self.card_number)
+            if not user_data:
+                logger.error(f"用户 {self.card_number} 不存在")
+                return
 
-                logger.info(f"用户 {self.card_number} 登录成功")
+            # 处理用户数据
+            self.user_info = json.loads(user_data)
+            self.headers = {
+                "Authorization": f'bearer {self.user_info["token"]}',
+                "User-ID": self.user_info["id"],
+                "Card-Number": self.card_number
+            }
+
+            logger.info(f"用户 {self.card_number} 登录成功")
 
         if not self.headers:
             logger.error("缺少认证信息，无法继续执行")
@@ -201,7 +202,7 @@ class TestLoadShape(LoadUserShape):
     # 定义负载阶段
     # 总用户数 20，每个 Worker 节点处理 10 个用户
     stages = [
-        {"duration": 300, "user_count": 300, "rate": 30},    # 0-300秒：300个用户，每秒启动300个
+        {"duration": 300, "user_count": 300, "rate": 30},    # 0-300秒：300个用户，每秒启动30个
         {"duration": 2400, "user_count": 3000, "rate": 150},    # 300-2400秒：3000个用户，每秒启动150个
         {"duration": 3000, "user_count": 1500, "rate": 50},    # 2400-3000秒：1500个用户，每秒启动50个
         {"duration": 3300, "user_count": 300, "rate": 30},    # 3000-3300秒：300个用户，每秒启动30个

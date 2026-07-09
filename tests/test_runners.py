@@ -15,6 +15,67 @@ from aiotest.runners import (LocalRunner, MasterRunner, WorkerNode,
                              init_metrics_collector, start_prometheus_service)
 from aiotest.state_manager import RunnerState
 
+# 模块级别的MockRedisClient基类，包含所有必需的Redis方法
+class _BaseMockRedisClient:
+    """完整的Mock Redis客户端，提供所有distributed_coordinator需要的方法"""
+
+    async def publish(self, *args, **kwargs):
+        pass
+
+    async def subscribe(self, *args, **kwargs):
+        class MockPubSub:
+            async def get_message(self, *args, **kwargs):
+                return None
+
+            async def listen(self, *args, **kwargs):
+                # 异步生成器，不产生任何消息
+                if False:
+                    yield  # noqa: 保持生成器接口
+        return MockPubSub()
+
+    async def pubsub(self, *args, **kwargs):
+        """返回模拟的PubSub对象，支持subscribe/get_message/listen"""
+        class MockPubSub:
+            async def subscribe(self, *args, **kwargs):
+                pass
+
+            async def get_message(self, *args, **kwargs):
+                return None
+
+            async def listen(self, *args, **kwargs):
+                # 异步生成器，不产生任何消息
+                if False:
+                    yield  # noqa: 保持生成器接口
+        return MockPubSub()
+
+    async def scan(self, cursor=0, match=None, count=None):
+        """返回 (cursor, keys)，模拟无匹配key"""
+        return (0, [])
+
+    async def hgetall(self, key):
+        """返回空的hash数据"""
+        return {}
+
+    async def time(self):
+        """返回模拟的Redis服务器时间 (秒, 微秒)"""
+        import time as _time
+        t = _time.time()
+        return (int(t), int((t - int(t)) * 1_000_000))
+
+    async def hset(self, *args, **kwargs):
+        pass
+
+    async def set(self, *args, **kwargs):
+        pass
+
+    async def get(self, *args, **kwargs):
+        return None
+
+    async def close(self):
+        pass
+
+
+
 
 @allure.feature("辅助函数")
 class TestHelperFunctions:
@@ -446,7 +507,7 @@ class TestWorkerRunner:
         load_shape = TestLoadShape()
 
         # 创建一个简单的Redis客户端模拟
-        class MockRedisClient:
+        class MockRedisClient(_BaseMockRedisClient):
             pass
 
         redis_client = MockRedisClient()
@@ -495,7 +556,7 @@ class TestWorkerRunner:
         load_shape = TestLoadShape()
 
         # 创建一个简单的Redis客户端模拟
-        class MockRedisClient:
+        class MockRedisClient(_BaseMockRedisClient):
             pass
 
         redis_client = MockRedisClient()
@@ -531,15 +592,8 @@ class TestWorkerRunner:
         load_shape = TestLoadShape()
 
         # 创建一个简单的Redis客户端模拟
-        class MockRedisClient:
-            async def publish(self, *args, **kwargs):
-                pass
-
-            async def subscribe(self, *args, **kwargs):
-                class MockPubSub:
-                    async def get_message(self, *args, **kwargs):
-                        return None
-                return MockPubSub()
+        class MockRedisClient(_BaseMockRedisClient):
+            pass
 
         redis_client = MockRedisClient()
 
@@ -581,15 +635,8 @@ class TestWorkerRunner:
         load_shape = TestLoadShape()
 
         # 创建一个简单的Redis客户端模拟
-        class MockRedisClient:
-            async def publish(self, *args, **kwargs):
-                pass
-
-            async def subscribe(self, *args, **kwargs):
-                class MockPubSub:
-                    async def get_message(self, *args, **kwargs):
-                        return None
-                return MockPubSub()
+        class MockRedisClient(_BaseMockRedisClient):
+            pass
 
         redis_client = MockRedisClient()
 
@@ -644,27 +691,8 @@ class TestWorkerRunner:
         load_shape = TestLoadShape()
 
         # 创建一个更完整的Redis客户端模拟
-        class MockRedisClient:
-            async def publish(self, *args, **kwargs):
-                pass
-
-            async def subscribe(self, *args, **kwargs):
-                class MockPubSub:
-                    async def get_message(self, *args, **kwargs):
-                        return None
-                return MockPubSub()
-
-            async def hset(self, *args, **kwargs):
-                pass
-
-            async def pubsub(self, *args, **kwargs):
-                class MockPubSub:
-                    async def get_message(self, *args, **kwargs):
-                        return None
-
-                    async def subscribe(self, *args, **kwargs):
-                        pass
-                return MockPubSub()
+        class MockRedisClient(_BaseMockRedisClient):
+            pass
 
         redis_client = MockRedisClient()
 
@@ -707,7 +735,7 @@ class TestMasterRunner:
         load_shape = TestLoadShape()
 
         # 创建一个简单的Redis客户端模拟
-        class MockRedisClient:
+        class MockRedisClient(_BaseMockRedisClient):
             pass
 
         redis_client = MockRedisClient()
@@ -751,15 +779,8 @@ class TestMasterRunner:
         load_shape = TestLoadShape()
 
         # 创建一个简单的Redis客户端模拟
-        class MockRedisClient:
-            async def publish(self, *args, **kwargs):
-                pass
-
-            async def subscribe(self, *args, **kwargs):
-                class MockPubSub:
-                    async def get_message(self, *args, **kwargs):
-                        return None
-                return MockPubSub()
+        class MockRedisClient(_BaseMockRedisClient):
+            pass
 
         redis_client = MockRedisClient()
 
@@ -803,7 +824,7 @@ class TestMasterRunner:
         load_shape = TestLoadShape()
 
         # 创建一个简单的Redis客户端模拟
-        class MockRedisClient:
+        class MockRedisClient(_BaseMockRedisClient):
             pass
 
         redis_client = MockRedisClient()
@@ -839,15 +860,8 @@ class TestMasterRunner:
         load_shape = TestLoadShape()
 
         # 创建一个简单的Redis客户端模拟
-        class MockRedisClient:
-            async def publish(self, *args, **kwargs):
-                pass
-
-            async def subscribe(self, *args, **kwargs):
-                class MockPubSub:
-                    async def get_message(self, *args, **kwargs):
-                        return None
-                return MockPubSub()
+        class MockRedisClient(_BaseMockRedisClient):
+            pass
 
         redis_client = MockRedisClient()
 
@@ -903,15 +917,8 @@ class TestMasterRunner:
         load_shape = TestLoadShape()
 
         # 创建一个简单的Redis客户端模拟
-        class MockRedisClient:
-            async def publish(self, *args, **kwargs):
-                pass
-
-            async def subscribe(self, *args, **kwargs):
-                class MockPubSub:
-                    async def get_message(self, *args, **kwargs):
-                        return None
-                return MockPubSub()
+        class MockRedisClient(_BaseMockRedisClient):
+            pass
 
         redis_client = MockRedisClient()
 
@@ -963,16 +970,7 @@ class TestMasterRunner:
         load_shape = TestLoadShape()
 
         # 创建一个简单的Redis客户端模拟
-        class MockRedisClient:
-            async def publish(self, *args, **kwargs):
-                pass
-
-            async def subscribe(self, *args, **kwargs):
-                class MockPubSub:
-                    async def get_message(self, *args, **kwargs):
-                        return None
-                return MockPubSub()
-
+        class MockRedisClient(_BaseMockRedisClient):
             async def get(self, *args, **kwargs):
                 # 模拟Redis get操作，返回一个有效的心跳值
                 import json
@@ -1025,15 +1023,8 @@ class TestMasterRunner:
         load_shape = TestLoadShape()
 
         # 创建一个简单的Redis客户端模拟
-        class MockRedisClient:
-            async def publish(self, *args, **kwargs):
-                pass
-
-            async def subscribe(self, *args, **kwargs):
-                class MockPubSub:
-                    async def get_message(self, *args, **kwargs):
-                        return None
-                return MockPubSub()
+        class MockRedisClient(_BaseMockRedisClient):
+            pass
 
         redis_client = MockRedisClient()
 
@@ -1085,7 +1076,7 @@ class TestMasterRunner:
 
         import json
 
-        class MockRedisClient:
+        class MockRedisClient(_BaseMockRedisClient):
             async def publish(self, channel, message):
                 # 解析消息，提取command字段
                 try:
@@ -1094,12 +1085,6 @@ class TestMasterRunner:
                         published_commands.append(payload["command"])
                 except json.JSONDecodeError:
                     pass
-
-            async def subscribe(self, *args, **kwargs):
-                class MockPubSub:
-                    async def get_message(self, *args, **kwargs):
-                        return None
-                return MockPubSub()
 
         redis_client = MockRedisClient()
 
@@ -1156,7 +1141,7 @@ class TestMasterRunner:
 
         import json
 
-        class MockRedisClient:
+        class MockRedisClient(_BaseMockRedisClient):
             async def publish(self, channel, message):
                 # 解析消息，提取command字段
                 try:
@@ -1165,12 +1150,6 @@ class TestMasterRunner:
                         published_commands.append(payload["command"])
                 except json.JSONDecodeError:
                     pass
-
-            async def subscribe(self, *args, **kwargs):
-                class MockPubSub:
-                    async def get_message(self, *args, **kwargs):
-                        return None
-                return MockPubSub()
 
         redis_client = MockRedisClient()
 
@@ -1230,15 +1209,8 @@ class TestMasterRunner:
         published_commands = []
 
         # 创建一个模拟的Redis客户端
-        class MockRedisClient:
-            async def publish(self, *args, **kwargs):
-                pass
-
-            async def subscribe(self, *args, **kwargs):
-                class MockPubSub:
-                    async def get_message(self, *args, **kwargs):
-                        return None
-                return MockPubSub()
+        class MockRedisClient(_BaseMockRedisClient):
+            pass
 
         redis_client = MockRedisClient()
 
@@ -1312,15 +1284,8 @@ class TestMasterRunner:
         load_shape = TestLoadShape()
 
         # 创建一个模拟的Redis客户端
-        class MockRedisClient:
-            async def publish(self, *args, **kwargs):
-                pass
-
-            async def subscribe(self, *args, **kwargs):
-                class MockPubSub:
-                    async def get_message(self, *args, **kwargs):
-                        return None
-                return MockPubSub()
+        class MockRedisClient(_BaseMockRedisClient):
+            pass
 
         redis_client = MockRedisClient()
 
@@ -1349,10 +1314,6 @@ class TestMasterRunner:
         await runner.quit()
 
 
-if __name__ == "__main__":
-    pytest.main([__file__, "-v"])
-
-
 # 测试create_prometheus_app函数
 @allure.feature("Prometheus")
 class TestPrometheus:
@@ -1360,7 +1321,6 @@ class TestPrometheus:
     @allure.title("测试create_prometheus_app函数")
     @allure.severity(allure.severity_level.NORMAL)
     async def test_create_prometheus_app(self):
-        """测试create_prometheus_app函数，验证runner参数功能"""
         # 创建一个模拟的runner对象
         class MockRunner:
             def __init__(self):
@@ -1376,3 +1336,7 @@ class TestPrometheus:
         # 测试不带runner参数的情况（向后兼容）
         app_no_runner = create_prometheus_app()
         assert app_no_runner is not None
+
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])

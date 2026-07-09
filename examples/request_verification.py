@@ -351,15 +351,11 @@ class RequestVerificationUser(HttpUser):
             # 即使状态码是 400，断言成功也会标记为成功
             assert True
 
-        # 测试 2: 断言失败，即使 HTTP 状态码是 200
-        try:
-            async with self.client.get("/status/200", name="Assertion Fail with 200") as resp:
-                logger.info(f"测试 2: 状态码 {resp.status}，断言失败")
-                # 即使状态码是 200，断言失败也会标记为失败
-                assert False, "故意的断言失败"
-        except AssertionError:
-            # 预期的断言失败
-            pass
+        # 测试 2: 故意触发断言失败，以演示 assertion_result="fail" 指标
+        # 该断言失败会被框架捕获并记录到 assertion_result 指标中
+        async with self.client.get("/status/200", name="Assertion Fail with 200") as resp:
+            logger.info(f"测试 2: 状态码 {resp.status}，断言失败")
+            assert False, "故意的断言失败"
 
 
 class RequestVerificationLoadShape(LoadUserShape):

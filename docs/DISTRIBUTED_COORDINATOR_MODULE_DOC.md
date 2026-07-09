@@ -306,22 +306,14 @@ print(f"Worker 01 is {'alive' if is_alive else 'dead'}")
 ### 使用分布式锁
 
 ```python
-# 使用分布式锁
-lock = DistributedLock(redis_client, "resource_name", timeout=10)
-
-async with await lock:
+# 推荐使用 with_lock 快捷方式
+async with await DistributedLock.with_lock(redis_client, "resource_name") as lock:
     if lock.locked:
         # 临界区代码
         print("Acquired lock, executing critical section")
         # 执行需要同步的操作
         await asyncio.sleep(2)
         print("Critical section completed")
-
-# 使用快捷方式
-async with await DistributedLock.with_lock(redis_client, "resource_name") as lock:
-    if lock.locked:
-        # 临界区代码
-        print("Acquired lock using shortcut")
 ```
 
 ## 性能优化建议

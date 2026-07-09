@@ -55,10 +55,10 @@ def validate_params(func):
     """
     参数验证装饰器，验证用户数量和速率参数
 
-    Args:
+    参数：
         func: 被装饰的函数
 
-    Returns:
+    返回：
         包装后的函数
     """
 
@@ -221,7 +221,7 @@ class BaseRunner:
 
     async def run_until_complete(self) -> None:
         """运行测试直到完成"""
-        if self.load_shape_manager.task:
+        if self.load_shape_manager and self.load_shape_manager.task:
             await self.load_shape_manager.task
 
     async def quit(self):

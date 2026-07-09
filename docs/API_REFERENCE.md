@@ -67,7 +67,7 @@ HTTP 用户类，继承自 User，提供 HTTP 客户端功能。
 
 | 属性 | 类型 | 默认值 | 说明 |
 | ------ | ------ | ------- | ------ |
-| `host` | `str` | `None` | HTTP 服务地址 |
+| `host` | `Optional[str]` | `None` | HTTP 服务地址 |
 | `timeout` | `int` | `30` | HTTP 请求超时时间（秒） |
 | `max_retries` | `int` | `3` | HTTP 请求最大重试次数 |
 | `verify_ssl` | `bool` | `True` | 是否验证 SSL 证书 |
@@ -368,7 +368,7 @@ ______________________________________________________________________
 
 #### 方法
 
-##### `__init__(self, node, redis_client, node_id, coordinator, batch_size, flush_interval, buffer_size)`
+##### `__init__(self, node_type, redis_client, node_id, coordinator, batch_size, flush_interval, buffer_size)`
 
 初始化指标收集器。
 
@@ -465,7 +465,7 @@ ______________________________________________________________________
 - `channel_type`: 频道类型
 - `handler`: 消息处理器
 
-### RedisLock 类
+### DistributedLock 类
 
 分布式锁，用于分布式环境下的互斥操作。
 

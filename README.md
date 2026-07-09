@@ -1,6 +1,6 @@
 # AioTest - 异步负载测试框架
 
-[![Python Version](https://img.shields.io/badge/python-3.9+-blue.svg)](https://python.org)
+[![Python Version](https://img.shields.io/badge/python-3.11+-blue.svg)](https://python.org)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Documentation](https://img.shields.io/badge/docs-latest-brightgreen.svg)](docs/)
 
@@ -220,18 +220,21 @@ aiotest -f examples/distributed_example.py \
 分布式测试使用 Redis 作为协调和数据共享的媒介：
 
 ```python
-from aiotest import redis_client, RedisLock
+from aiotest import redis_client, DistributedLock
 import json
 
 async def test_shared_data(self):
     # 分布式锁示例
-    async with await RedisLock.with_lock(redis_client, "test_lock", timeout=10) as lock:
-        if lock.locked:
-            # 数据共享示例
-            data = await redis_client.hget("shared_data", "key")
-            if data:
-                user_info = json.loads(data)
-                # 使用共享数据
+    async with await DistributedLock.with_lock(redis_client, "test_lock", timeout=10) as lock:
+        if not lock.locked:
+            # 获取锁失败的处理
+            logger.warning("获取分布式锁超时，跳过本次任务")
+            return
+
+        # 成功获取锁，安全操作共享资源
+        data = await redis_client.hget("shared_data", "key")
+        if data:
+            user_info = json.loads(data)
 ```
 
 ## 📊 监控与指标
@@ -385,7 +388,7 @@ class TestUser(HttpUser):
 
 - [peak_load_shape.py](examples/load_shape/peak_load_shape.py) - 峰值负载形状
 - [random_load_shape.py](examples/load_shape/random_load_shape.py) - 随机负载形状
-- [step_soad_shape.py](examples/load_shape/step_soad_shape.py) - 阶梯负载形状
+- [step_load_shape.py](examples/load_shape/step_load_shape.py) - 阶梯负载形状
 - [wave_load_shape.py](examples/load_shape/wave_load_shape.py) - 波浪负载形状
 
 ## 🖥️ 命令行参数
@@ -419,7 +422,7 @@ aiotest --logfile test.log            # 设置日志文件
 --metrics-buffer-size 10000          # 指标缓冲区大小
 
 # 其他参数
---show-users-wight                   # 显示用户权重
+--show-users-weight                  # 显示用户权重
 --version                            # 显示版本信息
 ```
 

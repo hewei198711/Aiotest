@@ -58,3 +58,6 @@ docs/_build/
 # OS
 .DS_Store
 Thumbs.db
+
+# debug test
+ucong_*

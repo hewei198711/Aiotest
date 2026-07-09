@@ -198,7 +198,8 @@ class TestUserManagement:
 
         # 停止用户
         await manager._stop_users(3, 10.0)
-        # 活跃用户数应该减少
+        manager.cleanup_inactive_users()
+        assert len(manager.active_users) == 2
 
     @allure.story("用户管理")
     @allure.title("测试用户管理核心方法")

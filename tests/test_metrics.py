@@ -410,7 +410,7 @@ class TestBufferProcessing:
         """测试当缓冲区数据量不足 batch_size 时，也能在刷新时上传所有可用数据"""
         # 创建一个 mock 的 coordinator 对象
         class MockCoordinator:
-            async def publish(self, channel, data, worker_id=None):
+            async def publish(self, channel, data, worker_id=None, **kwargs):
                 pass
 
         # 创建 Worker 类型的收集器，设置较小的 batch_size

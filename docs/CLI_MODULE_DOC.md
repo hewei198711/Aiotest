@@ -202,7 +202,7 @@ ______________________________________________________________________
 | ------- | ------ | ------- | ------ | --------- |
 | `aiotestfile` | `str` | `aiotestfile` | 测试文件路径 | 所有模式 |
 | `host` | `str` | `""` | 测试目标主机 | 所有模式 |
-| `show_users_wight` | `bool` | `False` | 显示用户权重 | 所有模式 |
+| `show_users_weight` | `bool` | `False` | 显示用户权重 | 所有模式 |
 | `redis_path` | `str` | `127.0.0.1` | Redis服务器地址 | 分布式模式 |
 | `redis_port` | `int` | `6379` | Redis服务器端口 | 分布式模式 |
 | `redis_password` | `str` | `123456` | Redis服务器密码 | 分布式模式 |
@@ -236,7 +236,7 @@ aiotest --loglevel DEBUG
 
 # 显示用户权重
 
-aiotest --show-users-wight
+aiotest --show-users-weight
 ```
 
 ### 分布式模式运行

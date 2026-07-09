@@ -35,7 +35,10 @@ AioTest性能指标模块
 """
 
 import asyncio
+import json
 import time
+import zlib
+import base64
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
@@ -382,14 +385,32 @@ class MetricsCollector:
                 self._metrics_buffer.append(metrics_dict)
                 logger.warning("指标缓冲区已满，丢弃最旧的指标")
 
+    def _compress_data(self, data: Any) -> str:
+        """
+        压缩数据
+
+        参数：
+            data: 要压缩的数据
+
+        返回：
+            str: 压缩后的base64编码字符串
+        """
+
+        json_str = json.dumps(data, ensure_ascii=False)
+        compressed = zlib.compress(json_str.encode('utf-8'))
+        return base64.b64encode(compressed).decode('utf-8')
+
     async def _forward_batch_to_redis(
             self, batch: List[Dict[str, Any]]) -> None:
         """批量转发数据到 Redis"""
         if not self.coordinator:
             return
 
+        # 压缩数据以减少传输量
+        compressed_batch = self._compress_data(batch)
+        
         # 批量发布请求数据
-        await self.coordinator.publish("request_metrics", batch, worker_id=self.node_id)
+        await self.coordinator.publish("request_metrics", compressed_batch, worker_id=self.node_id, compressed=True)
 
     def get_metrics_export(self) -> str:
         """获取 Prometheus 格式的指标导出，仅测试使用"""

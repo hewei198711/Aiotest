@@ -62,7 +62,7 @@ class StateManager:
                 return
             if new_state not in valid_transitions.get(self.state, []):
                 raise RuntimeError(
-                    "无效的状态转换: %s -> %s", self.state, new_state)
+                    f"无效的状态转换: {self.state} -> {new_state}")
 
             logger.info("状态已更改: %s -> %s", self.state, new_state)
             self.state = new_state

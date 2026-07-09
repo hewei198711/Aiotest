@@ -4,7 +4,7 @@
 
 ## 📋 前置要求
 
-- Python 3.9 或更高版本
+- Python 3.11 或更高版本
 - pip 包管理器
 - 基本的 Python 编程知识
 
@@ -234,10 +234,10 @@ async def custom_handler(**kwargs):
 
 ```python
 
-from aiotest import redis_client, RedisLock
+from aiotest import redis_client, DistributedLock
 
 async def test_with_lock(self):
-    async with await RedisLock.with_lock(redis_client, "my_lock", timeout=10) as lock:
+    async with await DistributedLock.with_lock(redis_client, "my_lock", timeout=10) as lock:
         if lock.locked:
             # 执行需要互斥的操作
             pass

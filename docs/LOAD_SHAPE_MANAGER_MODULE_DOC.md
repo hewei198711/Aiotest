@@ -7,7 +7,6 @@
 - [概述](#%E6%A6%82%E8%BF%B0)
 - [核心功能](#%E6%A0%B8%E5%BF%83%E5%8A%9F%E8%83%BD)
 - [核心类：LoadShapeManager](#%E6%A0%B8%E5%BF%83%E7%B1%BBloadshapemanager)
-- [独立运行器类：StandaloneLoadShapeRunner](#%E7%8B%AC%E7%AB%8B%E8%BF%90%E8%A1%8C%E5%99%A8%E7%B1%BBstandaloneloadshaperunner)
 - [调用逻辑流程](#%E8%B0%83%E7%94%A8%E9%80%BB%E8%BE%91%E6%B5%81%E7%A8%8B)
 - [流程图](#%E6%B5%81%E7%A8%8B%E5%9B%BE)
 - [配置参数](#%E9%85%8D%E7%BD%AE%E5%8F%82%E6%95%B0)
@@ -27,7 +26,6 @@ ______________________________________________________________________
 - ✅ **负载形状动态管理** - 自动调整用户数量和请求速率
 - ✅ **定期配置更新** - 定期获取并应用新的负载配置
 - ✅ **错误处理** - 完善的错误处理和连续错误限制
-- ✅ **独立运行** - 不依赖 BaseRunner 的独立运行能力
 - ✅ **异步支持** - 支持异步操作和任务管理
 - ✅ **日志记录** - 完善的日志记录和状态管理
 
@@ -60,33 +58,6 @@ def __init__(self, load_shape: Any, apply_load_callback: Callable[[int, float], 
 | `is_running` (property) | 检查是否正在运行 | 无 | `bool` | 需要监控状态时 |
 | `task` (property) | 获取后台任务 | 无 | `Optional[asyncio.Task]` | 需要访问后台任务时 |
 
-## 独立运行器类StandaloneLoadShapeRunner
-
-**作用**：独立的负载形状运行器，用于不需要继承 BaseRunner 的场景
-
-### 初始化方法
-
-```python
-
-def __init__(self, load_shape: Any, apply_load_callback: Callable[[int, float], Awaitable[Any]])
-```
-
-**作用**：初始化独立负载形状运行器，包装 LoadShapeManager 并添加退出状态管理
-
-**参数说明**：
-
-- `load_shape`：负载形状对象，需要实现 `tick()` 方法
-- `apply_load_callback`：应用负载的回调函数，接收 (user_count, rate) 参数
-
-### 方法说明
-
-| 方法名 | 作用 | 参数 | 返回值 | 调用时机 |
-| ------- | ------ | ------ | ------- | --------- |
-| `start()` | 启动形状测试 | 无 | `None` | 需要开始负载测试时 |
-| `quit()` | 退出形状测试 | 无 | `None` | 需要退出负载测试时 |
-| `is_quit` (property) | 检查是否已退出 | 无 | `bool` | 需要监控退出状态时 |
-| `is_running` (property) | 检查是否正在运行 | 无 | `bool` | 需要监控运行状态时 |
-
 ## 调用逻辑流程
 
 ### 初始化流程
@@ -115,16 +86,6 @@ def __init__(self, load_shape: Any, apply_load_callback: Callable[[int, float], 
 1. **取消后台任务** → 取消 `_run_shape_test()` 任务
 1. **等待任务完成** → 等待任务正常结束或被取消
 1. **记录日志** → 记录停止信息
-
-### 独立运行器流程
-
-1. **创建 StandaloneLoadShapeRunner 实例** → 传入负载形状对象和回调函数
-1. **启动运行器** → 调用 `start()` 方法
-1. **检查退出状态** → 如果已退出，抛出异常
-1. **运行负载测试** → 内部调用 LoadShapeManager 的方法
-1. **退出运行器** → 调用 `quit()` 方法
-1. **设置退出标志** → 将 `_quit_flag` 设置为 True
-1. **停止管理器** → 调用 LoadShapeManager 的 `stop()` 方法
 
 ## 流程图
 
@@ -198,24 +159,6 @@ flowchart TD
 
 ```
 
-### 独立运行器流程
-
-```mermaid
-
-flowchart TD
-    A[创建StandaloneLoadShapeRunner] --> B[调用start方法]
-    B --> C{是否已退出?}
-    C -->| 是 |D[抛出RuntimeError]
-    C -->| 否 |E[调用LoadShapeManager.start]
-    E --> F[运行负载测试]
-    F --> G[调用quit方法]
-    G --> H[设置退出标志]
-    H --> I[调用LoadShapeManager.stop]
-    I --> J[结束]
-    D --> J
-
-```
-
 ## 配置参数
 
 | 配置项 | 类型 | 默认值 | 说明 | 适用场景 |
@@ -269,51 +212,6 @@ async def basic_usage():
 # 执行示例
 
 await basic_usage()
-
-```
-
-### 使用独立运行器
-
-```python
-
-import asyncio
-from aiotest.load_shape_manager import StandaloneLoadShapeRunner
-from aiotest import LoadUserShape
-
-class RampUpLoadShape(LoadUserShape):
-    """递增负载形状"""
-    def tick(self):
-        # 线性增加用户数
-        user_count = min(self.duration // 5, 20)  # 最多20个用户
-        rate = user_count * 0.5  # 每个用户0.5个请求/秒
-        return (user_count, rate)
-
-async def apply_load(user_count, rate):
-    """应用负载的回调函数"""
-    print(f"Load updated: {user_count} users, {rate}/s")
-
-async def standalone_usage():
-    """使用独立运行器示例"""
-    # 创建负载形状
-    load_shape = RampUpLoadShape()
-
-    # 创建独立运行器
-    runner = StandaloneLoadShapeRunner(load_shape, apply_load)
-
-    # 启动运行器
-    await runner.start()
-    print(f"Runner started: {runner.is_running}")
-
-    # 运行一段时间
-    await asyncio.sleep(60)
-
-    # 退出运行器
-    await runner.quit()
-    print(f"Runner quit: {runner.is_quit}")
-
-# 执行示例
-
-await standalone_usage()
 
 ```
 
@@ -465,7 +363,6 @@ await integration_usage()
 | 负载形状管理器启动失败 | 负载形状对象没有 tick() 方法 | 确保负载形状对象实现了 tick() 方法 |
 | 负载形状管理器停止工作 | 连续错误超过阈值 | 检查负载形状的 tick() 方法是否正常，或调整错误阈值 |
 | 负载配置未生效 | 回调函数执行失败 | 检查回调函数的实现，确保它能正确应用负载配置 |
-| 独立运行器无法启动 | 已调用过 quit() 方法 | 确保只在需要时调用 quit()，或创建新的运行器实例 |
 | 后台任务未正确停止 | 任务被卡住 | 确保回调函数不会阻塞，或添加适当的超时处理 |
 
 ### 日志分析
@@ -484,9 +381,9 @@ await integration_usage()
 
 1. **灵活性**：支持自定义负载形状，适应不同的测试需求
 1. **可靠性**：完善的错误处理机制，确保测试的稳定性
-1. **可扩展性**：提供独立运行器，支持不同的使用场景
+1. **可扩展性**：支持灵活的使用场景
 1. **易用性**：简洁的接口设计，便于集成和使用
 
-`LoadShapeManager` 和 `StandaloneLoadShapeRunner` 两个类各司其职，前者负责核心的负载形状管理逻辑，后者提供了独立运行的能力，为 AioTest 负载测试框架提供了强大的负载控制能力。
+`LoadShapeManager` 类负责核心的负载形状管理逻辑，为 AioTest 负载测试框架提供了强大的负载控制能力。
 
 通过合理使用负载形状管理器，测试人员可以创建更加真实、有效的负载测试场景，更好地评估系统在不同负载条件下的性能表现。无论是简单的线性负载增长，还是复杂的负载变化模式，`load_shape_manager.py` 模块都能够提供可靠的支持。

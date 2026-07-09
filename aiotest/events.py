@@ -28,9 +28,16 @@ class EventHook:
         - 处理高优先级任务。
     """
 
-    def __init__(self):
+    def __init__(self, timeout: float = 5.0):
+        """
+        初始化事件钩子。
+
+        参数：
+            timeout (float): 事件处理器执行超时时间（秒），默认 5.0 秒。
+        """
         self._handlers: List[Tuple[int, Callable[..., Any]]] = []
         self._lock = asyncio.Lock()
+        self._timeout = timeout
         # 待注册的装饰器处理器
         self._pending_handlers: List[Tuple[Callable[..., Any], int]] = []
 
@@ -154,17 +161,13 @@ class EventHook:
             # 检查处理器类型
             if asyncio.iscoroutinefunction(handler):
                 # 协程函数，直接调用并等待
-                await asyncio.wait_for(handler(**kwargs), timeout=5.0)
+                await asyncio.wait_for(handler(**kwargs), timeout=self._timeout)
             else:
-                # 调用处理器
+                # 同步函数：先调用获取结果
                 result = handler(**kwargs)
-                # 如果返回协程对象，等待它
                 if asyncio.iscoroutine(result):
-                    await asyncio.wait_for(result, timeout=5.0)
-                else:
-                    # 同步函数，在执行器中运行
-                    loop = asyncio.get_event_loop()
-                    await loop.run_in_executor(None, lambda: handler(**kwargs))
+                    # 如果返回协程对象，等待它
+                    await asyncio.wait_for(result, timeout=self._timeout)
         except asyncio.TimeoutError:
             logger.warning(
                 "处理器超时: %s",

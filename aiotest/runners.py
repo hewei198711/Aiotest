@@ -512,12 +512,9 @@ class WorkerRunner(BaseRunner):
             try:
                 # 每5秒检查一次退出状态
                 await asyncio.sleep(5.0)
-
             except Exception as e:
                 logger.warning("检查退出状态失败: %s", e)
-                # 出错后，等待一段时间再继续检查
                 await asyncio.sleep(5.0)
-                continue
 
     async def _handle_command(self, data: dict, worker_id: str, command: str):
         """统一的命令处理器"""
@@ -732,8 +729,7 @@ class MasterRunner:
             if hasattr(self, '_stop_completion_tracker'):
                 self._stop_completion_tracker["stopped_workers"].add(worker_id)
 
-            # 检查是否所有Worker都已停止
-            if hasattr(self, '_stop_completion_tracker'):
+                # 检查是否所有Worker都已停止
                 total_workers = self._stop_completion_tracker["total_workers"]
                 stopped_workers = len(
                     self._stop_completion_tracker["stopped_workers"])
@@ -791,6 +787,10 @@ class MasterRunner:
                 pass
             elif actual_state == RunnerState.STARTING:
                 # 从STARTING状态失败，转换到STOPPING
+                await self.state_manager.transition_state(RunnerState.STOPPING)
+            elif actual_state == RunnerState.RUNNING:
+                # 从RUNNING状态失败，转换到STOPPING
+                logger.warning("RUNNING 状态下应用负载失败，转换到 STOPPING")
                 await self.state_manager.transition_state(RunnerState.STOPPING)
             logger.error("Master应用负载失败: %s", str(e))
             raise

@@ -33,7 +33,7 @@ from .main import main
 from .shape import LoadUserShape
 from .users import ExecutionMode, HttpUser, User, WaitTimeResolver, WaitTimeType, weight
 
-__version__ = "1.0.7"
+__version__ = "1.1.0"
 __author__ = "AioTest Team"
 __description__ = "Asyncio-based load testing framework"
 

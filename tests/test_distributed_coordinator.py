@@ -50,11 +50,6 @@ class TestRedisConnection:
         """测试 Redis 连接失败时的重试逻辑"""
         connection = RedisConnection(max_retries=2, retry_interval=0.01)
 
-        # 重置全局Redis连接变量
-        import aiotest.distributed_coordinator
-        aiotest.distributed_coordinator._global_redis_client = None
-        aiotest.distributed_coordinator._global_redis_connection = None
-
         # 尝试连接到不存在的Redis服务器（端口6380），触发重试逻辑
         try:
             # 这应该会失败并触发重试
@@ -72,11 +67,6 @@ class TestRedisConnection:
     async def test_get_client_failure(self):
         """测试 Redis 连接失败的情况"""
         connection = RedisConnection(max_retries=2, retry_interval=0.01)
-
-        # 重置全局Redis连接变量
-        import aiotest.distributed_coordinator
-        aiotest.distributed_coordinator._global_redis_client = None
-        aiotest.distributed_coordinator._global_redis_connection = None
 
         # 尝试连接到不存在的Redis服务器（端口6380），触发失败逻辑
         with pytest.raises(Exception):

@@ -137,31 +137,6 @@ class TestLogger:
             if "test_log" in logging.Logger.manager.loggerDict:
                 del logging.Logger.manager.loggerDict["test_log"]
 
-    @allure.story("日志级别")
-    @allure.title("测试设置日志级别别名")
-    @allure.severity(allure.severity_level.NORMAL)
-    def test_set_level_alias(self):
-        """测试设置日志级别（使用别名方法）"""
-        import logging
-        with tempfile.TemporaryDirectory() as temp_dir:
-            logger_instance = Logger(
-                name="test_log",
-                log_dir=temp_dir,
-                log_level="INFO")
-            assert logger_instance.logger.level == 20  # INFO 级别
-
-            logger_instance.set_level("DEBUG")
-            assert logger_instance.logger.level == 10  # DEBUG 级别
-
-            # 关闭日志处理器，释放文件锁
-            for handler in logger_instance.logger.handlers:
-                handler.close()
-                logger_instance.logger.removeHandler(handler)
-
-            # 清理日志记录器缓存
-            if "test_log" in logging.Logger.manager.loggerDict:
-                del logging.Logger.manager.loggerDict["test_log"]
-
     @allure.story("日志记录")
     @allure.title("测试记录 DEBUG 级别日志")
     @allure.severity(allure.severity_level.NORMAL)

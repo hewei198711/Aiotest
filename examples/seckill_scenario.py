@@ -38,21 +38,24 @@ from aiotest import (DistributedLock, HttpUser, LoadUserShape, RedisConnection,
                      logger, startup_completed)
 from aiotest.cli import parse_options
 
-# 获取命令行参数
-options = parse_options()
-
-# Redis 连接配置
-REDIS_PATH = options.redis_path
-REDIS_PORT = options.redis_port
-REDIS_PASSWORD = options.redis_password
-
 # 全局 Redis 连接
 redis_client = None
 redis_connection = None
 
+
+def _get_redis_config():
+    """延迟获取 Redis 配置，避免模块导入时解析命令行参数"""
+    options = parse_options()
+    return options.redis_path, options.redis_port, options.redis_password
+
+
 # 信号量：用于控制所有用户等待
 # 初始化时信号量为0，所有用户会被阻塞
 users_ready_semaphore = asyncio.Semaphore(0)
+
+# 信号量等待超时（秒），避免启动失败时永久阻塞
+SECCKILL_READY_TIMEOUT = 300
+
 
 # 标志：确保事件处理器只执行一次
 _startup_completed_triggered = False
@@ -83,10 +86,11 @@ async def initialize_redis():
     if redis_client is None:
         if redis_connection is None:
             redis_connection = RedisConnection()
+        redis_path, redis_port, redis_password = _get_redis_config()
         redis_client = await redis_connection.get_client(
-            path=REDIS_PATH,
-            port=REDIS_PORT,
-            password=REDIS_PASSWORD
+            path=redis_path,
+            port=redis_port,
+            password=redis_password
         )
         logger.info("Redis connection initialized")
     return redis_client
@@ -163,8 +167,18 @@ class SeckillUser(HttpUser):
             return
 
         # 关键：等待信号量，直到所有用户准备就绪
+        # 设置超时避免启动失败时永久阻塞
         logger.info(f"用户 {self.card_number} 已准备好，等待信号量...")
-        await users_ready_semaphore.acquire()
+        try:
+            await asyncio.wait_for(
+                users_ready_semaphore.acquire(),
+                timeout=SECCKILL_READY_TIMEOUT
+            )
+        except asyncio.TimeoutError:
+            logger.error(
+                f"用户 {self.card_number} 等待启动信号超时（{SECCKILL_READY_TIMEOUT} 秒），跳过测试"
+            )
+            return
         logger.info(f"用户 {self.card_number} 收到信号量，开始执行任务！")
 
     async def on_stop(self):

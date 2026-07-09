@@ -7,6 +7,7 @@ HTTP客户端模块，提供异步HTTP请求功能
 
 import asyncio
 import json
+import ssl
 import re
 import time
 import traceback
@@ -21,23 +22,115 @@ from aiotest.events import request_metrics
 from aiotest.logger import logger
 from aiotest.metrics import RequestMetrics
 
+
 # 连接池配置
 CONNECTOR_SETTINGS = {
     'limit': 1000,  # 默认最大连接数（支持高并发场景）
     'limit_per_host': 100,  # 默认每个主机最大连接数（适合单主机压测）
     'force_close': False,  # 默认是否强制关闭空闲连接
     'enable_cleanup_closed': True,  # 默认是否清理已关闭的连接
+    'family': 0,  # 0 表示同时支持 IPv4 和 IPv6，使用异步 DNS 解析
+    'ssl': None,  # 默认为 None，使用 aiohttp 的默认 SSL 配置
 }
 
 
+class ConnectionPoolManager:
+    """
+    连接池管理器，用于管理全局的 HTTP 连接池
+
+    功能：
+    - 为不同的主机创建和管理连接池
+    - 实现连接池的复用，减少连接创建开销
+    - 提供统一的连接池配置管理
+    """
+
+    def __init__(self):
+        """初始化连接池管理器"""
+        self._connectors = {}  # 存储不同主机的连接池
+        self._lock = asyncio.Lock()  # 用于协程安全操作，防止多个协程同时修改共享资源
+
+    async def get_connector(self, host: str) -> aiohttp.TCPConnector:
+        """
+        获取或创建指定主机的连接池
+
+        参数：
+            host: 主机地址
+
+        返回：
+            aiohttp.TCPConnector: 连接池实例
+        """
+        async with self._lock:
+            # 检查是否已有可用的连接池
+            if host in self._connectors:
+                connector = self._connectors[host]
+                # 检查连接器是否已关闭或事件循环是否已关闭
+                try:
+                    if not connector.closed:
+                        # 检查连接器的事件循环是否与当前事件循环相同
+                        current_loop = asyncio.get_event_loop()
+                        if connector._loop is current_loop:
+                            return connector
+                except (RuntimeError, AttributeError):
+                    # 事件循环已关闭或连接器已失效
+                    pass
+                # 连接池已关闭或事件循环不匹配，删除它
+                del self._connectors[host]
+                logger.debug("主机 %s 的连接池已关闭或事件循环不匹配，将创建新的连接池", host)
+            
+            # 创建新的连接池
+            # 创建 SSL 上下文，优化 SSL 握手
+            ssl_context = ssl.create_default_context()
+            ssl_context.check_hostname = CONNECTOR_SETTINGS.get('verify_ssl', True)
+            
+            # 创建新的连接池
+            connector = aiohttp.TCPConnector(
+                limit=CONNECTOR_SETTINGS['limit'],
+                limit_per_host=CONNECTOR_SETTINGS['limit_per_host'],
+                force_close=CONNECTOR_SETTINGS['force_close'],
+                enable_cleanup_closed=CONNECTOR_SETTINGS['enable_cleanup_closed'],
+                family=CONNECTOR_SETTINGS['family'],  # 使用异步 DNS 解析
+                ssl=ssl_context  # 使用优化的 SSL 上下文
+            )
+            self._connectors[host] = connector
+            logger.debug("为主机 %s 创建新的连接池", host)
+            return connector
+
+    async def close(self):
+        """
+        关闭所有连接池
+        """
+        async with self._lock:
+            for host, connector in self._connectors.items():
+                try:
+                    await connector.close()
+                    logger.debug("关闭主机 %s 的连接池", host)
+                except Exception as e:
+                    logger.error("关闭连接池失败: %s", e)
+            self._connectors.clear()
+
+
+# 全局连接池管理器实例
+connection_pool_manager = ConnectionPoolManager()
+
+
+async def close_all_connections():
+    """
+    关闭所有连接池，在程序结束时调用
+    """
+    await connection_pool_manager.close()
+    logger.info("所有连接池已关闭")
+
+
 def configure_connector(limit=None, limit_per_host=None,
-                        force_close=None, enable_cleanup_closed=None):
+                        force_close=None, enable_cleanup_closed=None, family=None, verify_ssl=None):
     """动态配置连接池参数"""
     for key, value in {
         'limit': limit,
         'limit_per_host': limit_per_host,
         'force_close': force_close,
-        'enable_cleanup_closed': enable_cleanup_closed
+        'enable_cleanup_closed': enable_cleanup_closed,
+        'family': family,
+        'verify_ssl': verify_ssl
     }.items():
         if value is not None:
             CONNECTOR_SETTINGS[key] = value
@@ -122,37 +215,33 @@ class HTTPClient:
         异步上下文管理器入口，用于初始化HTTP会话和连接池。
 
         功能：
-        - 初始化TCP连接池。
+        - 从全局连接池管理器获取连接池。
         - 创建ClientSession实例。
 
         返回：
             HTTPClient: 当前实例，支持链式调用。
-
-        异常：
-            ClientError: 如果会话初始化失败。
         """
-        self._connector = aiohttp.TCPConnector(
-            limit=CONNECTOR_SETTINGS['limit'],
-            limit_per_host=CONNECTOR_SETTINGS['limit_per_host'],
-            force_close=CONNECTOR_SETTINGS['force_close'],
-            enable_cleanup_closed=CONNECTOR_SETTINGS['enable_cleanup_closed'],
-            verify_ssl=self.verify_ssl
-        )
+        # 从全局连接池管理器获取连接池
+        host = self.base_url.rstrip('/')
+        self._connector = await connection_pool_manager.get_connector(host)
+        
         self._session = aiohttp.ClientSession(
             base_url=self.base_url,
             headers=self.default_headers,
             timeout=self.timeout,
             connector=self._connector,
+            connector_owner=False,  # 连接池由全局管理器管理，会话不拥有连接池
             json_serialize=json.dumps  # 使用标准json序列化
         )
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
-        """关闭HTTP会话和连接池，清理资源"""
+        """关闭HTTP会话，清理资源"""
         close_timeout = 5.0  # 秒
 
         if self._session:
             try:
+                # 只关闭会话，不关闭连接池（连接池由全局管理器管理）
                 await asyncio.wait_for(self._session.close(), timeout=close_timeout)
             except asyncio.TimeoutError:
                 logger.warning("会话关闭超时")
@@ -277,8 +366,9 @@ class HTTPClient:
         """DELETE请求方法"""
         return self.request('DELETE', endpoint, **kwargs)
 
+    @staticmethod
     @lru_cache(maxsize=100)
-    def _normalize_endpoint(self, endpoint: str) -> str:
+    def _normalize_endpoint(endpoint: str) -> str:
         """
         将动态路径转换为固定模式
 
@@ -287,8 +377,24 @@ class HTTPClient:
 
         返回：
         - str: 标准化后的端点（自动转换 /users/123 为 /users/{id}）
+
+        说明：
+        - 单个数字段使用 {id}，多个数字段使用 {id0}, {id1}... 区分
         """
-        return re.sub(r'\/\d+(/|$)', r'/{id}\1', endpoint)
+        matches = list(re.finditer(r'\/(\d+)(?=/|$)', endpoint))
+        if not matches:
+            return endpoint
+        # 单个数字段使用统一的 {id} 占位符（向后兼容）
+        if len(matches) == 1:
+            return re.sub(r'\/\d+(?=/|$)', '/{id}', endpoint)
+        # 多个数字段使用递增占位符以区分
+        counter = {"i": 0}
+
+        def replace(match):
+            counter["i"] += 1
+            return f"/{{id{counter['i'] - 1}}}"
+
+        return re.sub(r'\/\d+(?=/|$)', replace, endpoint)
 
     async def _record_request_metrics(
         self,
@@ -373,7 +479,7 @@ class HTTPClient:
 
     def _log_request_failed(self, log: RequestMetrics, log_data: Dict[str, Any], log_prefix: str):
         """记录请求失败日志"""
-        if hasattr(log, 'error') and log.error is not None:
+        if log.error is not None:
             log_data["error"] = log.error
             # 如果有响应数据,也记录到日志中
             if log.error.get("response_data") is not None:

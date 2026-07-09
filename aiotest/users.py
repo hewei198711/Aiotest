@@ -118,6 +118,56 @@ class ExecutionMode(Enum):
     CONCURRENT = auto()  # 并发执行
 
 
+class TaskPool:
+    """
+    任务池类，用于控制并发数，减少任务创建开销
+    
+    功能：
+    - 使用信号量控制并发数
+    - 提供任务执行的上下文管理
+    - 优化任务执行流程，减少开销
+    """
+    
+    def __init__(self, max_size: int):
+        """
+        初始化任务池
+        
+        参数：
+            max_size: 最大并发数
+        """
+        self.max_size = max_size
+        self.semaphore = asyncio.Semaphore(max_size)
+    
+    async def execute(self, coro):
+        """
+        执行协程，自动管理并发数
+        
+        参数：
+            coro: 要执行的协程
+        
+        返回：
+            协程的返回值
+        """
+        async with self.semaphore:
+            return await coro
+    
+    async def execute_many(self, coros):
+        """
+        批量执行多个协程
+        
+        参数：
+            coros: 协程列表
+        
+        返回：
+            所有协程的返回值列表
+        """
+        tasks = []
+        for coro in coros:
+            task = asyncio.create_task(self.execute(coro))
+            tasks.append(task)
+        return await asyncio.gather(*tasks)
+
+
 class UserMeta(type):
     """
     用户元类，用于自动收集任务函数。
@@ -240,18 +290,27 @@ class User(metaclass=UserMeta):
             self.weight = weight_val
 
         # 设置最大并发任务数
+        total_weight_exceeds = False
         if max_concurrent_tasks is not None:
-            if max_concurrent_tasks <= 0:
-                self.max_concurrent_tasks = 1
-            else:
-                self.max_concurrent_tasks = min(max_concurrent_tasks, 100)
+            # 用户指定了并发数
+            self.max_concurrent_tasks = max(min(max_concurrent_tasks, 100), 1)
         else:
-            # 自动设置为任务数量，最少为1
+            # 自动基于总权重设置
             jobs = getattr(self, 'jobs', [])
-            self.max_concurrent_tasks = max(min(len(jobs), 100), 1)
+            total_weight = sum(weight for _, weight in jobs)
+            if total_weight > 100:
+                total_weight_exceeds = True
+            self.max_concurrent_tasks = max(min(total_weight, 100), 1)
+
+        # 检查并警告总权重超限
+        if total_weight_exceeds:
+            logger.warning("总权重 %d 超过最大并发限制 100，将并发数限制为 100，或者请检查权重设置是否合理，重新开启测试", total_weight)
 
         if execution_mode is not None:
             self.execution_mode = execution_mode
+
+        # 初始化任务池
+        self.task_pool = TaskPool(self.max_concurrent_tasks)
 
         # 验证顺序执行模式下的权重约束
         self._validate_sequential_weights()
@@ -404,25 +463,21 @@ class User(metaclass=UserMeta):
         first_weight = weights_list[0]
         all_weights_same = all(w == first_weight for w in weights_list)
 
-        # 创建信号量控制并发数
-        semaphore = asyncio.Semaphore(self.max_concurrent_tasks)
-
         async def run_task(job: Callable[[], Coroutine]) -> None:
             """执行单个任务"""
-            async with semaphore:  # 默认占用1个信号量
+            # 检查是否暂停
+            await self._wait_if_paused()
+            
+            try:
+                await job(self)
+            except Exception as e:
+                await self._handle_error(e)
+            finally:
                 # 检查是否暂停
                 await self._wait_if_paused()
                 
-                try:
-                    await job(self)
-                except Exception as e:
-                    await self._handle_error(e)
-                finally:
-                    # 检查是否暂停
-                    await self._wait_if_paused()
-                    
-                    # 使用新的等待解析器，支持多种等待时间类型
-                    await WaitTimeResolver.wait(self.wait_time)
+                # 使用新的等待解析器，支持多种等待时间类型
+                await WaitTimeResolver.wait(self.wait_time)
 
         while True:
             # 检查是否暂停
@@ -442,7 +497,9 @@ class User(metaclass=UserMeta):
                 )
 
             # 并发执行选中的任务
-            await asyncio.gather(*[run_task(job) for job in selected_jobs])
+            coros = [run_task(job) for job in selected_jobs]
+            if coros:
+                await self.task_pool.execute_many(coros)
 
     async def _handle_error(self, error: Exception) -> None:
         """处理任务执行中的错误。"""

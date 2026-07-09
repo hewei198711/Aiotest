@@ -8,8 +8,8 @@ from functools import lru_cache
 from typing import Dict, Optional, Tuple, Type
 
 # 检查Python版本
-if sys.version_info < (3, 9):
-    print("错误: AioTest 需要 Python 3.9 或更高版本。")
+if sys.version_info < (3, 11):
+    print("错误: AioTest 需要 Python 3.11 或更高版本。")
     print(f"您正在使用 Python {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}")
     sys.exit(1)
 
@@ -17,7 +17,7 @@ from aiotest.logger import logger
 from aiotest.shape import LoadUserShape
 from aiotest.users import User
 
-version = "1.0.7"
+version = "1.1.0"
 
 
 def parse_options(args=None):
@@ -66,7 +66,7 @@ def parse_options(args=None):
 
     # show
     parser.add_argument(
-        '--show-users-wight',
+        '--show-users-weight',
         action='store_true',
         help="打印用户类执行权重的JSON数据"
     )

@@ -41,6 +41,10 @@ class ExtraFieldFormatter(Formatter):
                 self._style._fmt = self.default_fmt
 
             return super().format(record)
+        except Exception:
+            # 格式化异常时回退到默认格式，避免日志系统崩溃
+            self._style._fmt = self.default_fmt
+            return super().format(record)
         finally:
             # 恢复原始格式
             self._style._fmt = original_fmt
@@ -65,6 +69,7 @@ class Logger:
         self.log_level = log_level.upper()
         os.makedirs(self.log_dir, exist_ok=True)
         self._setup_logging()
+        self.logger.debug("日志记录器已初始化: name=%s, log_dir=%s, level=%s", name, log_dir, log_level)
 
     def _setup_logging(self):
         """
@@ -81,6 +86,7 @@ class Logger:
         if self.logger.handlers:
             # 如果已经有处理器，更新日志级别
             self.logger.setLevel(self.log_level)
+            self.logger.debug("日志处理器已存在，跳过初始化，更新级别为: %s", self.log_level)
             return
 
         # 确保日志记录器的 propagate 设置为 False，避免父记录器重复处理
@@ -99,7 +105,7 @@ class Logger:
             }
         )
 
-        # 文件处理器 - 直接覆盖原有文件
+        # 文件处理器 - 追加到原有文件
         file_handler = logging.FileHandler(
             filename=os.path.join(self.log_dir, f'{self.name}.log'),
             mode='a',  # 追加模式
@@ -114,14 +120,12 @@ class Logger:
         # 添加处理器
         self.logger.addHandler(file_handler)
         self.logger.addHandler(stdout_handler)
+        self.logger.debug("日志处理器已配置: 文件输出=%s, 控制台输出=已启用", file_handler.baseFilename)
 
     def setLevel(self, level):
         """动态设置日志级别"""
         self.logger.setLevel(level.upper())
-
-    def set_level(self, level):
-        """动态设置日志级别（setLevel的别名）"""
-        self.setLevel(level)
+        self.logger.debug("日志级别已切换为: %s", level.upper())
 
     def debug(self, message, *args, **kwargs):
         """记录DEBUG级别日志"""

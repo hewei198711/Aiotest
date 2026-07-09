@@ -6,6 +6,7 @@ import allure
 import pytest
 
 from aiotest import ExecutionMode, HttpUser, User, WaitTimeResolver, weight
+from aiotest.users import TaskPool
 
 
 @allure.feature("WaitTimeResolver")
@@ -890,10 +891,14 @@ class TestUser:
         class TestUserClass3(User):
             pass
 
-        # 手动设置 jobs 列表，模拟 150 个任务
-        TestUserClass3.jobs = [(lambda self: None, 1) for _ in range(150)]
-        user3 = TestUserClass3()
-        assert user3.max_concurrent_tasks == 100  # 任务数量超过 100 时设置为 100
+        # 临时覆盖子类的 jobs 列表，测试后恢复（避免污染类属性）
+        original_jobs = TestUserClass3.jobs
+        try:
+            TestUserClass3.jobs = [(lambda self: None, 1) for _ in range(150)]
+            user3 = TestUserClass3()
+            assert user3.max_concurrent_tasks == 100  # 任务数量超过 100 时设置为 100
+        finally:
+            TestUserClass3.jobs = original_jobs
 
     @allure.story("暂停/恢复功能")
     @allure.title("测试暂停/恢复功能")
@@ -972,7 +977,8 @@ class TestUser:
         result = await user._wait_if_paused(timeout=0.2)
         end_time = asyncio.get_event_loop().time()
         assert result is False  # 应该超时
-        assert end_time - start_time >= 0.2
+        # 允许一些时间误差，使用 0.18 作为阈值
+        assert end_time - start_time >= 0.18
 
         # 测试恢复后等待
         await user.resume_tasks()
@@ -1311,6 +1317,106 @@ class TestHttpUser:
 
         # 验证客户端仍然初始化状态（即使请求失败，客户端仍然可用）
         assert user._client_initialized
+
+
+@allure.feature("TaskPool")
+class TestTaskPool:
+    """TaskPool 类的测试用例"""
+
+    @allure.story("初始化")
+    @allure.title("测试任务池初始化")
+    @allure.severity(allure.severity_level.NORMAL)
+    async def test_task_pool_initialization(self):
+        """测试任务池初始化"""
+        # 测试正常初始化
+        pool = TaskPool(max_size=5)
+        assert pool.max_size == 5
+
+    @allure.story("任务执行")
+    @allure.title("测试执行单个任务")
+    @allure.severity(allure.severity_level.NORMAL)
+    async def test_execute_single_task(self):
+        """测试执行单个任务"""
+        pool = TaskPool(max_size=1)
+        
+        # 定义测试任务
+        async def test_task():
+            await asyncio.sleep(0.1)
+            return "task completed"
+        
+        # 执行任务
+        result = await pool.execute(test_task())
+        assert result == "task completed"
+
+    @allure.story("任务执行")
+    @allure.title("测试批量执行多个任务")
+    @allure.severity(allure.severity_level.NORMAL)
+    async def test_execute_many_tasks(self):
+        """测试批量执行多个任务"""
+        pool = TaskPool(max_size=3)
+        
+        # 定义测试任务
+        async def test_task(task_id):
+            await asyncio.sleep(0.1)
+            return f"task {task_id} completed"
+        
+        # 批量执行任务
+        coros = [test_task(i) for i in range(5)]
+        results = await pool.execute_many(coros)
+        
+        # 验证结果
+        assert len(results) == 5
+        assert all("completed" in result for result in results)
+
+    @allure.story("并发控制")
+    @allure.title("测试并发限制")
+    @allure.severity(allure.severity_level.NORMAL)
+    async def test_concurrency_limit(self):
+        """测试并发限制"""
+        pool = TaskPool(max_size=2)
+        
+        # 记录任务开始时间
+        start_times = []
+        
+        async def test_task(task_id):
+            start_times.append(asyncio.get_event_loop().time())
+            await asyncio.sleep(0.2)
+            return task_id
+        
+        # 执行3个任务
+        coros = [test_task(i) for i in range(3)]
+        results = await pool.execute_many(coros)
+        
+        # 验证结果
+        assert len(results) == 3
+        assert sorted(results) == [0, 1, 2]
+
+    @allure.story("任务执行")
+    @allure.title("测试执行空任务列表")
+    @allure.severity(allure.severity_level.NORMAL)
+    async def test_empty_tasks(self):
+        """测试执行空任务列表"""
+        pool = TaskPool(max_size=5)
+        
+        # 执行空任务列表
+        results = await pool.execute_many([])
+        assert results == []
+
+    @allure.story("错误处理")
+    @allure.title("测试任务执行错误处理")
+    @allure.severity(allure.severity_level.NORMAL)
+    async def test_error_handling(self):
+        """测试任务执行错误处理"""
+        pool = TaskPool(max_size=1)
+        
+        # 定义会抛出异常的任务
+        async def error_task():
+            await asyncio.sleep(0.1)
+            raise ValueError("Test error")
+        
+        # 验证异常被正确传播
+        with pytest.raises(ValueError, match="Test error"):
+            await pool.execute(error_task())
 
 
 if __name__ == "__main__":

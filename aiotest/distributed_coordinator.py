@@ -2,7 +2,9 @@
 
 import asyncio
 import json
-from typing import Optional
+import zlib
+import base64
+from typing import Optional, Any
 from uuid import uuid4
 
 from redis.asyncio import Redis
@@ -58,7 +60,7 @@ class RedisConnection:
             redis.ConnectionError: 如果连接 Redis 失败。
         """
         if self._client is None:
-            logger.debug("正在创建新的Redis连接，地址: %s:%s", path, port)
+            logger.debug("正在创建新的Redis连接，地址: %s:%s, 最大重试: %d", path, port, self.max_retries)
             retry_count = 0
             while retry_count < self.max_retries:
                 try:
@@ -73,7 +75,7 @@ class RedisConnection:
                     # 测试连接是否可用
                     logger.debug("正在测试Redis连接，地址: %s:%s", path, port)
                     await self._client.ping()
-                    logger.info("Redis连接已建立: %s:%s", path, port)
+                    logger.info("Redis连接已建立: %s:%s (尝试 %d/%d)", path, port, retry_count + 1, self.max_retries)
                     return self._client
                 except Exception as e:
                     # 重置连接状态以便重试
@@ -93,15 +95,18 @@ class RedisConnection:
                             "Redis 连接失败，已重试 %d 次: %s",
                             self.max_retries, str(e))
                         raise e
-        logger.debug("正在使用现有的Redis连接: %s:%s", path, port)
+        logger.debug("复用现有Redis连接: %s:%s", path, port)
         return self._client
 
     async def close(self):
         """关闭Redis连接"""
         if self._client:
+            logger.debug("正在关闭Redis连接...")
             await self._client.close()
+            logger.info("Redis客户端已关闭")
         if self._pool:
             await self._pool.disconnect()
+            logger.info("Redis连接池已断开")
         self._client = None
         self._pool = None
         logger.info("Redis连接已关闭")
@@ -116,8 +121,8 @@ class DistributedLock:
         - 支持超时和重试机制，防止死锁。
 
     示例：
-        >>> lock = DistributedLock(redis_client, "resource_name", timeout=10)
-        >>> async with await lock:
+        推荐使用 with_lock 快捷方法：
+        >>> async with await DistributedLock.with_lock(redis, "my_lock_key") as lock:
         ...     # 临界区代码
         ...     pass
 
@@ -162,6 +167,9 @@ class DistributedLock:
         返回:
             bool: 是否成功获取锁
         """
+        logger.debug("尝试获取分布式锁: %s, 超时: %.1fs, 等待超时: %s",
+                     self.lock_key, self.timeout,
+                     f"{self.wait_timeout:.1f}s" if self.wait_timeout else "不等待")
         start_time = asyncio.get_event_loop().time()
 
         while True:
@@ -175,14 +183,18 @@ class DistributedLock:
 
             if acquired:
                 self.locked = True
+                elapsed = asyncio.get_event_loop().time() - start_time
+                logger.debug("分布式锁获取成功: %s, 耗时: %.3fs", self.lock_key, elapsed)
                 return True
 
             # 如果不等待或已超时，则返回失败
             if self.wait_timeout is None:
+                logger.warning("分布式锁获取失败(不等待): %s", self.lock_key)
                 return False
 
             elapsed = asyncio.get_event_loop().time() - start_time
             if elapsed >= self.wait_timeout:
+                logger.warning("分布式锁获取超时: %s, 等待: %.3fs", self.lock_key, elapsed)
                 return False
 
             # 没获取到锁，等待后重试
@@ -196,6 +208,7 @@ class DistributedLock:
             bool: 是否成功释放锁
         """
         if not self.locked:
+            logger.debug("分布式锁未锁定，跳过释放: %s", self.lock_key)
             return False
 
         # 使用Lua脚本保证原子性操作
@@ -216,7 +229,9 @@ class DistributedLock:
 
         if released:
             self.locked = False
+            logger.debug("分布式锁释放成功: %s", self.lock_key)
             return True
+        logger.warning("分布式锁释放失败(锁已被其他持有者占用或已过期): %s", self.lock_key)
         return False
 
     async def __aenter__(self):
@@ -323,20 +338,22 @@ class DistributedCoordinator:
             self.publish_channel = "aiotest:command:worker_to_master"  # 发布给Master的消息
         else:
             raise ValueError("无效的角色。必须是 'master' 或 'worker'。")
+        logger.info("分布式协调器已初始化: role=%s, node_id=%s, subscribe=%s, publish=%s",
+                    self.role, self.node_id, self.subscribe_channel, self.publish_channel)
 
-    async def publish(self, channel_type: str, data: dict,
+    async def publish(self, channel_type: str, data: Any,
                       worker_id: str = None, **kwargs):
         """
         统一的数据发布方法，支持多种数据类型的发布
 
         参数：
             channel_type: 频道类型，支持 "command", "request_metrics", "heartbeat"
-            data: 要发布的数据字典
+            data: 要发布的数据，可以是字典、列表或压缩后的字符串
             worker_id: Worker节点ID
                        - command: 可选，用于指定目标worker
                        - request_metrics: 必需
                        - heartbeat: 不使用（使用self.node_id）
-            **kwargs: 额外参数，如command参数用于命令发布
+            **kwargs: 额外参数，如command参数用于命令发布，compressed参数用于标识压缩数据
 
         返回：
             None
@@ -363,7 +380,10 @@ class DistributedCoordinator:
                 payload["data"] = data
             if worker_id:
                 payload["worker_id"] = worker_id
-            await self.redis.publish(self.publish_channel, json.dumps(payload))
+            payload_json = json.dumps(payload)
+            await self.redis.publish(self.publish_channel, payload_json)
+            logger.debug("命令已发布: command=%s, channel=%s, worker_id=%s, size=%d",
+                         command, self.publish_channel, worker_id or "broadcast", len(payload_json))
 
         elif channel_type == "request_metrics":
             # 发布批量请求数据到请求指标频道
@@ -371,25 +391,22 @@ class DistributedCoordinator:
                 raise ValueError(
                     "请求指标批量发布需要 'worker_id'")
 
-            # 如果批量数据过大，拆分成多个小批次发送
-            if isinstance(data, list) and len(data) > MAX_BATCH_SIZE:
-                for i in range(0, len(data), MAX_BATCH_SIZE):
-                    batch_chunk = data[i:i + MAX_BATCH_SIZE]
-                    batch_dict = {
-                        'batch': batch_chunk,
-                        'worker_id': worker_id,
-                        'timestamp': asyncio.get_event_loop().time(),
-                        'chunk_index': i // MAX_BATCH_SIZE,
-                        'total_chunks': (len(data) + MAX_BATCH_SIZE - 1) // MAX_BATCH_SIZE
-                    }
-                    await self.redis.publish("aiotest:metrics", json.dumps(batch_dict))
-            else:
-                batch_dict = {
-                    'batch': data,
-                    'worker_id': worker_id,
-                    'timestamp': asyncio.get_event_loop().time()
-                }
-                await self.redis.publish("aiotest:metrics", json.dumps(batch_dict))
+            # 检查是否为压缩数据
+            compressed = kwargs.get('compressed', False)
+            
+            batch_dict = {
+                'batch': data,
+                'worker_id': worker_id,
+                'timestamp': asyncio.get_event_loop().time(),
+                'compressed': compressed
+            }
+            
+            # 发送数据
+            payload_json = json.dumps(batch_dict)
+            await self.redis.publish("aiotest:metrics", payload_json)
+            batch_count = len(data) if isinstance(data, list) else 1
+            logger.debug("请求指标已发布: worker_id=%s, batch_count=%d, compressed=%s, size=%d",
+                         worker_id, batch_count, compressed, len(payload_json))
 
         elif channel_type == "heartbeat":
             # 发送心跳数据（存储到Redis hash，不是发布）
@@ -401,14 +418,16 @@ class DistributedCoordinator:
                 **data,
                 "timestamp": timestamp
             }
-
             # 将心跳数据存储到Redis，设置过期时间
             heartbeat_key = f"aiotest:heartbeat:{self.node_id}"
             await self.redis.hset(heartbeat_key, mapping=heartbeat_data)
             await self.redis.expire(heartbeat_key, int(HEARTBEAT_INTERVAL * HEARTBEAT_LIVENESS * 2))
+            logger.debug("心跳已发送: node_id=%s, cpu=%.1f%%, active_users=%s, timestamp=%.3f",
+                         self.node_id, data.get("cpu_percent", 0),
+                         data.get("active_users", "N/A"), timestamp)
 
         else:
-            raise ValueError("不支持的 channel_type: %s", channel_type)
+            raise ValueError(f"不支持的 channel_type: {channel_type}")
 
     async def check_worker_heartbeat(self, worker_id: str) -> bool:
         """
@@ -424,6 +443,7 @@ class DistributedCoordinator:
         heartbeat_data = await self.redis.hgetall(heartbeat_key)
 
         if not heartbeat_data:
+            logger.debug("心跳检查: worker_id=%s 未找到心跳数据", worker_id)
             return False
 
         try:
@@ -432,9 +452,13 @@ class DistributedCoordinator:
             current_time = redis_time[0] + redis_time[1] / 1_000_000  # 秒 + 微秒
 
             last_heartbeat = float(heartbeat_data.get("timestamp", 0))
-            return (current_time - last_heartbeat) <= HEARTBEAT_INTERVAL * \
-                HEARTBEAT_LIVENESS
-        except (ValueError, TypeError):
+            time_diff = current_time - last_heartbeat
+            alive = time_diff <= HEARTBEAT_INTERVAL * HEARTBEAT_LIVENESS
+            logger.debug("心跳检查: worker_id=%s, time_diff=%.3fs, threshold=%.1fs, alive=%s",
+                         worker_id, time_diff, HEARTBEAT_INTERVAL * HEARTBEAT_LIVENESS, alive)
+            return alive
+        except (ValueError, TypeError) as e:
+            logger.warning("心跳检查解析失败: worker_id=%s, error=%s", worker_id, e)
             return False
 
     async def listen_heartbeats(self, callback=None):
@@ -459,18 +483,32 @@ class DistributedCoordinator:
                         if cursor == 0:
                             break
 
+                    active_workers = set()
                     for key in heartbeat_keys:
                         worker_id = key.replace("aiotest:heartbeat:", "")
+                        active_workers.add(worker_id)
                         heartbeat_data = await self.redis.hgetall(key)
 
                         if heartbeat_data:
                             # 检查状态是否发生变化
                             if worker_id not in worker_status or worker_status[worker_id] != heartbeat_data:
+                                is_new = worker_id not in worker_status
                                 worker_status[worker_id] = heartbeat_data
+                                if is_new:
+                                    logger.info("检测到新Worker上线: %s, cpu=%.1f%%, active_users=%s",
+                                                worker_id,
+                                                float(heartbeat_data.get("cpu_percent", 0)),
+                                                heartbeat_data.get("active_users", "N/A"))
 
                                 # 调用回调函数（如果提供）
                                 if callback:
                                     await callback(heartbeat_data, worker_id)
+
+                    # 检测下线的Worker
+                    offline_workers = set(worker_status.keys()) - active_workers
+                    for worker_id in offline_workers:
+                        logger.warning("Worker已下线: %s", worker_id)
+                        del worker_status[worker_id]
 
                     await asyncio.sleep(HEARTBEAT_INTERVAL)
 
@@ -517,14 +555,25 @@ class DistributedCoordinator:
                             batch = message_data.get('batch', [])
                             worker_id = message_data.get(
                                 'worker_id', 'unknown')
-                            chunk_index = message_data.get('chunk_index', 0)
-                            total_chunks = message_data.get('total_chunks', 1)
+                            compressed = message_data.get('compressed', False)
 
-                            # 记录分块信息（如果是分块传输）
-                            if total_chunks > 1:
-                                logger.debug(
-                                    "处理指标分块 %d/%d，来自 %s",
-                                    chunk_index + 1, total_chunks, worker_id)
+                            # 解压缩数据
+                            if compressed:
+                                try:
+                                    # 解压缩数据
+                                    compressed_data = batch
+                                    decoded_data = base64.b64decode(compressed_data)
+                                    decompressed_data = zlib.decompress(decoded_data)
+                                    batch = json.loads(decompressed_data.decode('utf-8'))
+                                    logger.debug("请求指标已解压缩: worker_id=%s, batch_count=%d",
+                                                 worker_id, len(batch) if isinstance(batch, list) else 1)
+                                except Exception as e:
+                                    logger.warning("解压缩指标数据失败: %s", str(e))
+                                    continue
+
+                            batch_count = len(batch) if isinstance(batch, list) else 1
+                            logger.debug("收到请求指标: worker_id=%s, batch_count=%d, compressed=%s",
+                                         worker_id, batch_count, compressed)
 
                             # 遍历批量数据并调用回调
                             for metrics_data in batch:
@@ -582,69 +631,66 @@ class DistributedCoordinator:
                 "%s 开始在 %s 上监听命令", self.role, self.subscribe_channel)
 
             # 持续监听，直到收到quit命令或任务被取消
-            while True:
-                try:
-                    # 获取消息，使用async for循环来监听，这样更可靠
-                    async for message in pubsub.listen():
-                        if message["type"] == "message":
-                            try:
-                                data = json.loads(message["data"])
-                                command = data.get("command")
-                                command_data = data.get("data")
-                                worker_id = data.get("worker_id")
+            try:
+                # 获取消息，使用async for循环来监听，这样更可靠
+                async for message in pubsub.listen():
+                    if message["type"] == "message":
+                        try:
+                            data = json.loads(message["data"])
+                            command = data.get("command")
+                            command_data = data.get("data")
+                            worker_id = data.get("worker_id")
 
+                            logger.info(
+                                "收到命令: %s, 数据: %s, worker_id: %s",
+                                command, command_data, worker_id)
+
+                            # 只处理发给当前节点的命令（如果有worker_id过滤）
+                            # Master节点接收所有Worker节点的命令，Worker节点只接收发给自己的命令
+                            if self.role == "worker" and worker_id and hasattr(
+                                    self, 'node_id') and worker_id != self.node_id:
                                 logger.info(
-                                    "收到命令: %s, 数据: %s, worker_id: %s",
-                                    command, command_data, worker_id)
-
-                                # 只处理发给当前节点的命令（如果有worker_id过滤）
-                                # Master节点接收所有Worker节点的命令，Worker节点只接收发给自己的命令
-                                if self.role == "worker" and worker_id and hasattr(
-                                        self, 'node_id') and worker_id != self.node_id:
-                                    logger.info(
-                                        "命令不是发给当前worker，跳过。worker_id: %s, self.node_id: %s",
-                                        worker_id, self.node_id)
-                                    continue
-
-                                # 调用统一的命令处理器
-                                logger.info("正在处理命令: %s", command)
-                                await command_handler(command_data, worker_id, command)
-
-                                # 如果是quit命令，退出循环
-                                if command == "quit":
-                                    logger.info(
-                                        "收到退出命令，退出命令监听器")
-                                    break
-
-                            except json.JSONDecodeError:
-                                logger.warning(
-                                    "解析命令消息失败: %s", message)
+                                    "命令不是发给当前worker，跳过。worker_id: %s, self.node_id: %s",
+                                    worker_id, self.node_id)
                                 continue
-                            except Exception as e:
-                                logger.error(
-                                    "处理命令消息错误: %s", e)
-                                continue
-                        elif message["type"] == "subscribe":
-                            # Redis 服务器确认订阅成功
-                            logger.info(
-                                "已订阅频道: %s",
-                                message['channel'])
-                        elif message["type"] == "unsubscribe":
-                            # Redis 服务器确认取消订阅成功
-                            logger.info(
-                                "已取消订阅频道: %s",
-                                message['channel'])
-                            break
 
-                except asyncio.CancelledError:
-                    # 任务被取消，记录日志
-                    logger.info("命令监听器任务已取消")
-                    break
-                except Exception as e:
-                    logger.error("命令监听器错误: %s", str(e))
-                    # 出错后，等待一段时间再继续监听
-                    await asyncio.sleep(1.0)
-                    continue
+                            # 调用统一的命令处理器
+                            logger.info("正在处理命令: %s", command)
+                            await command_handler(command_data, worker_id, command)
+
+                            # 如果是quit命令，退出循环
+                            if command == "quit":
+                                logger.info(
+                                    "收到退出命令，退出命令监听器")
+                                break
+
+                        except json.JSONDecodeError:
+                            logger.warning(
+                                "解析命令消息失败: %s", message)
+                            continue
+                        except Exception as e:
+                            logger.error(
+                                "处理命令消息错误: %s", e)
+                            continue
+                    elif message["type"] == "subscribe":
+                        # Redis 服务器确认订阅成功
+                        logger.info(
+                            "已订阅频道: %s",
+                            message['channel'])
+                    elif message["type"] == "unsubscribe":
+                        # Redis 服务器确认取消订阅成功
+                        logger.info(
+                            "已取消订阅频道: %s",
+                            message['channel'])
+                        break
+
+            except asyncio.CancelledError:
+                # 任务被取消，记录日志
+                logger.info("命令监听器任务已取消")
+            except Exception as e:
+                logger.error("命令监听器错误: %s", str(e))
+                # 出错后，等待一段时间再继续监听
+                await asyncio.sleep(1.0)
 
         except Exception as e:
             logger.error("命令监听器错误: %s", str(e))

@@ -120,7 +120,7 @@ class TestMain:
             with open(test_file, 'w') as f:
                 f.write(test_file_content_with_users)
             # 测试显示用户权重选项
-            sys.argv = ["aiotest", "-f", test_file, "--show-users-wight"]
+            sys.argv = ["aiotest", "-f", test_file, "--show-users-weight"]
             with pytest.raises(SystemExit):
                 asyncio.run(main())
         finally:
@@ -193,7 +193,7 @@ class TestMain:
                 # 模拟非Windows环境
                 os.name = "posix"
                 # 测试文件描述符限制检查
-                sys.argv = ["aiotest", "-f", test_file, "--show-users-wight"]
+                sys.argv = ["aiotest", "-f", test_file, "--show-users-weight"]
                 with pytest.raises(SystemExit):
                     asyncio.run(main())
             finally:
@@ -215,7 +215,7 @@ class TestMain:
             with open(test_file, 'w') as f:
                 f.write(test_file_content_with_print)
             # 测试初始化事件触发
-            sys.argv = ["aiotest", "-f", test_file, "--show-users-wight"]
+            sys.argv = ["aiotest", "-f", test_file, "--show-users-weight"]
             with pytest.raises(SystemExit):
                 asyncio.run(main())
         finally:
@@ -234,7 +234,7 @@ class TestMain:
             with open(test_file, 'w') as f:
                 f.write(test_file_content_no_jobs)
             # 测试用户类没有任务函数的情况
-            sys.argv = ["aiotest", "-f", test_file, "--show-users-wight"]
+            sys.argv = ["aiotest", "-f", test_file, "--show-users-weight"]
             with pytest.raises(SystemExit):
                 asyncio.run(main())
         finally:
@@ -253,7 +253,7 @@ class TestMain:
             with open(test_file, 'w') as f:
                 f.write(test_file_content_with_valid_jobs)
             # 测试用户类有有效任务函数的情况
-            sys.argv = ["aiotest", "-f", test_file, "--show-users-wight"]
+            sys.argv = ["aiotest", "-f", test_file, "--show-users-weight"]
             with pytest.raises(SystemExit):
                 asyncio.run(main())
         finally:

@@ -315,18 +315,18 @@ class UserManager:
     async def stop_all_users(self):
         """停止所有用户"""
         for user in self.active_users:
-            if not user.tasks.done():
+            if user.tasks is not None and not user.tasks.done():
                 await user.stop_tasks()
         self.active_users.clear()
 
     async def pause_all_users(self):
         """暂停所有用户"""
         for user in self.active_users:
-            if not user.tasks.done():
+            if user.tasks is not None and not user.tasks.done():
                 await user.pause_tasks()
 
     async def resume_all_users(self):
         """恢复所有用户"""
         for user in self.active_users:
-            if not user.tasks.done():
+            if user.tasks is not None and not user.tasks.done():
                 await user.resume_tasks()

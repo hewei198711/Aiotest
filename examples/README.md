@@ -2,12 +2,13 @@
 
 本目录包含了 AioTest 框架的各种示例代码，按难度和场景分类。
 
-## 📋 目录
+## 目录
 
 - [基础级示例](#基础级示例)
 - [进阶级示例](#进阶级示例)
 - [高级示例](#高级示例)
 - [标准项目示例](#标准项目示例)
+- [负载形状示例](#负载形状示例)
 - [按场景分类](#按场景分类)
 
 ---
@@ -22,8 +23,9 @@
 
 **功能**:
 
-- 最简单的 HTTP GET 请求
-- 基本的用户类定义
+- 多种 HTTP 请求方法（GET、POST）
+- 基本的用户类定义和断言验证
+- on_start/on_stop 生命周期方法
 - 简单的负载形状
 
 **适用场景**: 第一次使用 AioTest，了解基本概念
@@ -34,40 +36,22 @@
 aiotest -f examples/basic.py
 ```
 
-### 2. 简单 HTTP 测试
+### 2. 权重和等待时间
 
-**文件**: [simple_http_test.py](simple_http_test.py)
+**文件**: [weight_and_wait.py](weight_and_wait.py)
 
 **功能**:
 
-- HTTP GET 和 POST 请求
-- 基本的断言验证
-- 固定等待时间
+- 多用户类权重设置
+- 4 种 wait_time 类型（固定值、随机范围、Lambda、异步函数）
+- 用户权重按比例分配
 
-**适用场景**: 测试简单的 HTTP API
+**适用场景**: 模拟真实用户的不同访问模式
 
 **运行方式**:
 
 ```bash
-aiotest -f examples/simple_http_test.py
-```
-
-### 3. 基础负载形状
-
-**文件**: [basic_load_shape.py](basic_load_shape.py)
-
-**功能**:
-
-- 阶梯式负载增长
-- 固定用户数和速率
-- 基本的负载形状实现
-
-**适用场景**: 了解负载形状的基本概念
-
-**运行方式**:
-
-```bash
-aiotest -f examples/basic_load_shape.py
+aiotest -f examples/weight_and_wait.py
 ```
 
 ---
@@ -76,37 +60,19 @@ aiotest -f examples/basic_load_shape.py
 
 适合有一定经验的用户，涵盖中等复杂度的功能。
 
-### 4. API 性能测试
-
-**文件**: [api_performance_test.py](api_performance_test.py)
-
-**功能**:
-
-- 多种 HTTP 方法（GET、POST、PUT、DELETE）
-- 请求参数和响应验证
-- 自定义负载形状
-- 指标收集和监控
-
-**适用场景**: 测试 RESTful API 的性能
-
-**运行方式**:
-
-```bash
-aiotest -f examples/api_performance_test.py --prometheus-port 8089
-```
-
-### 5. 并发执行模式
+### 3. 并发执行模式
 
 **文件**: [concurrent_example.py](concurrent_example.py)
 
 **功能**:
 
-- 并发执行模式
-- 任务权重控制
+- 并发执行模式（ExecutionMode.CONCURRENT）
+- 任务权重控制（@weight 装饰器）
 - 最大并发任务数限制
-- 高并发场景测试
+- 自定义请求名称（name 参数）
+- 连接池配置（configure_connector）
 
-**适用场景**: 测试高并发 API
+**适用场景**: 测试高并发 API，模拟商城首页多模块并发加载
 
 **运行方式**:
 
@@ -114,37 +80,18 @@ aiotest -f examples/api_performance_test.py --prometheus-port 8089
 aiotest -f examples/concurrent_example.py
 ```
 
-### 6. 权重和等待时间
-
-**文件**: [weight_and_wait.py](weight_and_wait.py)
-
-**功能**:
-
-- 用户权重设置
-- 任务权重设置
-- 多种等待时间类型
-- 随机等待时间
-
-**适用场景**: 模拟真实的用户行为
-
-**运行方式**:
-
-```bash
-aiotest -f examples/weight_and_wait.py
-```
-
-### 7. 事件系统示例
+### 4. 事件系统示例
 
 **文件**: [events_example.py](events_example.py)
 
 **功能**:
 
-- 自定义事件处理器
-- 事件钩子使用
-- 事件数据收集
-- 自定义指标处理
+- 所有预定义事件的使用（init_events、test_start、test_stop 等）
+- 装饰器方式注册事件处理器
+- 优先级控制
+- 请求指标事件处理（慢请求检测、错误请求检测）
 
-**适用场景**: 需要自定义事件处理的场景
+**适用场景**: 需要自定义事件处理和监控的场景
 
 **运行方式**:
 
@@ -152,18 +99,19 @@ aiotest -f examples/weight_and_wait.py
 aiotest -f examples/events_example.py
 ```
 
-### 8. 请求验证示例
+### 5. 请求验证示例
 
 **文件**: [request_verification.py](request_verification.py)
 
 **功能**:
 
-- 响应状态码验证
-- 响应内容验证
-- 响应头验证
-- JSON 响应解析
+- HTTP 状态码判断
+- 响应内容验证（JSON 结构、响应头）
+- 超时处理
+- 重试机制
+- 断言结果标签（assertion_result）说明
 
-**适用场景**: 需要严格验证响应的场景
+**适用场景**: 需要严格验证 API 响应的场景
 
 **运行方式**:
 
@@ -177,103 +125,62 @@ aiotest -f examples/request_verification.py
 
 适合有丰富经验的用户，涵盖复杂场景和高级功能。
 
-### 9. 分布式测试
+### 6. 分布式测试
 
 **文件**: [distributed_example.py](distributed_example.py)
 
 **功能**:
 
-- Master-Worker 架构
-- Redis 协调
-- 分布式负载分配
-- 节点状态监控
-
-**适用场景**: 大规模负载测试，需要多台机器
+- Master-Worker 分布式架构
+- 使用 Redis 存储和分发用户数据
+- 分布式锁（DistributedLock）确保并发安全
+- 多 Worker 节点从 Redis 拉取用户进行测试
 
 **运行方式**:
 
 ```bash
+# 准备用户数据
+python examples/prepare_user_data.py
+
 # 启动 Master
-aiotest -f examples/distributed_example.py --master --expect-workers 2
+aiotest -f examples/distributed_example.py \
+    --master --expect-workers 2 \
+    --redis-path 127.0.0.1 --redis-port 6379
 
 # 启动 Worker（在另一台机器上）
-aiotest -f examples/distributed_example.py --worker
+aiotest -f examples/distributed_example.py \
+    --worker \
+    --redis-path 127.0.0.1 --redis-port 6379
 ```
 
-### 10. 数据库性能测试
-
-**文件**: [database_performance_test.py](database_performance_test.py)
-
-**功能**:
-
-- 数据库连接管理
-- 数据库查询测试
-- 事务处理
-- 连接池优化
-
-**适用场景**: 测试数据库性能
-
-**运行方式**:
-
-```bash
-aiotest -f examples/database_performance_test.py
-```
-
-### 11. 微服务测试
-
-**文件**: [microservices_test.py](microservices_test.py)
-
-**功能**:
-
-- 多个微服务调用
-- 服务间依赖测试
-- 分布式事务
-- 服务发现模拟
-
-**适用场景**: 测试微服务架构
-
-**运行方式**:
-
-```bash
-aiotest -f examples/microservices_test.py
-```
-
-### 12. 秒杀场景测试
+### 7. 秒杀场景测试
 
 **文件**: [seckill_scenario.py](seckill_scenario.py)
 
 **功能**:
 
-- 高并发秒杀场景
-- 库存管理
-- 分布式锁
-- 限流控制
+- 高并发秒杀场景模拟
+- 使用 asyncio.Semaphore 实现所有用户等待
+- startup_completed 事件触发释放信号量
+- 分布式锁确保并发安全
 
 **适用场景**: 电商秒杀、抢购等高并发场景
 
 **运行方式**:
 
 ```bash
-aiotest -f examples/seckill_scenario.py
-```
+# 准备用户数据
+python examples/prepare_user_data.py
 
-### 13. 暂停恢复测试
+# 启动 Master
+aiotest -f examples/seckill_scenario.py \
+    --master --expect-workers 2 \
+    --redis-path 127.0.0.1 --redis-port 6379
 
-**文件**: [pause_resume_test.py](pause_resume_test.py)
-
-**功能**:
-
-- 测试暂停功能
-- 测试恢复功能
-- 状态转换验证
-- 控制中心集成
-
-**适用场景**: 需要暂停和恢复测试的场景
-
-**运行方式**:
-
-```bash
-aiotest -f examples/pause_resume_test.py
+# 启动 Worker
+aiotest -f examples/seckill_scenario.py \
+    --worker \
+    --redis-path 127.0.0.1 --redis-port 6379
 ```
 
 ---
@@ -334,37 +241,6 @@ docker-compose up -d
 
 ---
 
-## 按场景分类
-
-### API 测试
-
-- [basic.py](basic.py) - 基础 API 测试
-- [api_performance_test.py](api_performance_test.py) - API 性能测试
-- [request_verification.py](request_verification.py) - 请求验证
-
-### 负载测试
-
-- [basic_load_shape.py](basic_load_shape.py) - 基础负载形状
-- [api_performance_test.py](api_performance_test.py) - 负载性能测试
-- [pause_resume_test.py](pause_resume_test.py) - 暂停恢复测试
-
-### 分布式测试
-
-- [distributed_example.py](distributed_example.py) - 分布式测试
-- [microservices_test.py](microservices_test.py) - 微服务测试
-
-### 高并发测试
-
-- [concurrent_example.py](concurrent_example.py) - 并发执行
-- [seckill_scenario.py](seckill_scenario.py) - 秒杀场景
-
-### 功能测试
-
-- [events_example.py](events_example.py) - 事件系统
-- [weight_and_wait.py](weight_and_wait.py) - 权重和等待时间
-
----
-
 ## 负载形状示例
 
 `load_shape/` 目录包含各种负载形状的示例：
@@ -388,6 +264,33 @@ docker-compose up -d
 
 **功能**: 模拟波浪式负载
 **适用场景**: 测试系统在周期性负载下的表现
+
+---
+
+## 按场景分类
+
+### API 测试
+
+- [basic.py](basic.py) - 基础 API 测试
+- [request_verification.py](request_verification.py) - 请求验证
+
+### 负载测试
+
+- [weight_and_wait.py](weight_and_wait.py) - 权重和等待时间
+- [load_shape/](load_shape/) - 负载形状示例
+
+### 分布式测试
+
+- [distributed_example.py](distributed_example.py) - 分布式测试
+- [seckill_scenario.py](seckill_scenario.py) - 秒杀场景
+
+### 高并发测试
+
+- [concurrent_example.py](concurrent_example.py) - 并发执行
+
+### 功能测试
+
+- [events_example.py](events_example.py) - 事件系统
 
 ---
 
@@ -466,7 +369,7 @@ aiotest -f examples/basic.py --prometheus-port 8089
 
 ---
 
-## 📞 获取帮助
+## 获取帮助
 
 如果您在运行示例时遇到问题：
 

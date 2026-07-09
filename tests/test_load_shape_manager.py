@@ -5,8 +5,7 @@ import asyncio
 import allure
 import pytest
 
-from aiotest.load_shape_manager import (LoadShapeManager,
-                                        StandaloneLoadShapeRunner)
+from aiotest.load_shape_manager import LoadShapeManager
 
 
 # 测试用的负载形状类
@@ -208,109 +207,6 @@ class TestLoadShapeManager:
 
         # 停止
         await manager.stop()
-
-
-@allure.feature("StandaloneLoadShapeRunner")
-class TestStandaloneLoadShapeRunner:
-    """StandaloneLoadShapeRunner 类的测试用例"""
-
-    @allure.story("初始化")
-    @allure.title("测试 StandaloneLoadShapeRunner 初始化")
-    @allure.severity(allure.severity_level.NORMAL)
-    def test_initialization(self):
-        """测试 StandaloneLoadShapeRunner 初始化时正确设置属性"""
-        async def mock_callback(user_count, rate):
-            pass
-
-        load_shape = TestLoadShape()
-        runner = StandaloneLoadShapeRunner(load_shape, mock_callback)
-
-        assert runner.is_quit is False
-        assert runner.is_running is False
-
-    @allure.story("启动")
-    @allure.title("测试启动独立负载形状运行器")
-    @allure.severity(allure.severity_level.CRITICAL)
-    async def test_start(self):
-        """测试启动独立负载形状运行器"""
-        async def mock_callback(user_count, rate):
-            pass
-
-        load_shape = TestLoadShape()
-        runner = StandaloneLoadShapeRunner(load_shape, mock_callback)
-
-        # 启动
-        await runner.start()
-        assert runner.is_running is True
-        assert runner.is_quit is False
-
-        # 停止
-        await runner.quit()
-
-    @allure.story("启动")
-    @allure.title("测试退出后启动独立负载形状运行器")
-    @allure.severity(allure.severity_level.NORMAL)
-    async def test_start_after_quit(self):
-        """测试退出后启动独立负载形状运行器"""
-        async def mock_callback(user_count, rate):
-            pass
-
-        load_shape = TestLoadShape()
-        runner = StandaloneLoadShapeRunner(load_shape, mock_callback)
-
-        # 启动并退出
-        await runner.start()
-        await runner.quit()
-        assert runner.is_quit is True
-
-        # 尝试再次启动（应该失败）
-        with pytest.raises(RuntimeError):
-            await runner.start()
-
-    @allure.story("退出")
-    @allure.title("测试退出独立负载形状运行器")
-    @allure.severity(allure.severity_level.NORMAL)
-    async def test_quit(self):
-        """测试退出独立负载形状运行器"""
-        async def mock_callback(user_count, rate):
-            pass
-
-        load_shape = TestLoadShape()
-        runner = StandaloneLoadShapeRunner(load_shape, mock_callback)
-
-        # 启动
-        await runner.start()
-        assert runner.is_running is True
-
-        # 退出
-        await runner.quit()
-        assert runner.is_quit is True
-        assert runner.is_running is False
-
-    @allure.story("状态查询")
-    @allure.title("测试独立负载形状运行器状态查询")
-    @allure.severity(allure.severity_level.NORMAL)
-    async def test_state_queries(self):
-        """测试独立负载形状运行器的状态查询"""
-        async def mock_callback(user_count, rate):
-            pass
-
-        load_shape = TestLoadShape()
-        runner = StandaloneLoadShapeRunner(load_shape, mock_callback)
-
-        # 初始状态
-        assert runner.is_quit is False
-        assert runner.is_running is False
-
-        # 启动后
-        await runner.start()
-        assert runner.is_quit is False
-        assert runner.is_running is True
-
-        # 退出后
-        await runner.quit()
-        assert runner.is_quit is True
-        assert runner.is_running is False
 
 
 if __name__ == "__main__":

@@ -7,7 +7,7 @@ AioTest 权重和等待时间示例文件
 
 运行方式:
     aiotest -f examples/weight_and_wait.py
-    aiotest -f examples/weight_and_wait.py --show-users-wight
+    aiotest -f examples/weight_and_wait.py --show-users-weight
 
 使用 DEBUG 日志级别查看详细信息:
     aiotest -f examples/weight_and_wait.py --loglevel DEBUG

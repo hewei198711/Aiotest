@@ -65,7 +65,7 @@ ______________________________________________________________________
 
 **解决方案**:
 
-- AioTest 需要 Python 3.9 或更高版本
+- AioTest 需要 Python 3.11 或更高版本
 - 升级 Python：
 
 ```bash
@@ -74,7 +74,7 @@ ______________________________________________________________________
 
 # Linux/Mac
 brew install python3  # Mac
-sudo apt-get install python3.8  # Ubuntu
+sudo apt-get install python3.11  # Ubuntu
 ```
 
 ______________________________________________________________________
@@ -416,10 +416,10 @@ ______________________________________________________________________
 3. 使用分布式锁保护关键操作：
 
     ```python
-    from aiotest import redis_client, RedisLock
+    from aiotest import redis_client, DistributedLock
 
     async def test_with_lock(self):
-        async with await RedisLock.with_lock(redis_client, "critical_section", timeout=10) as lock:
+        async with await DistributedLock.with_lock(redis_client, "critical_section", timeout=10) as lock:
             if lock.locked:
                 # 执行关键操作
                 pass

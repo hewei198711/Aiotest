@@ -500,7 +500,8 @@ class TestResponseContextManager:
     @allure.severity(allure.severity_level.NORMAL)
     async def test_connection_reset(self):
         """测试连接被重置的情况"""
-        async with HTTPClient(base_url="http://localhost:8080") as client:
+        # 使用较短的超时时间，避免测试超时
+        async with HTTPClient(base_url="http://localhost:8080", timeout=1) as client:
             # 尝试访问会导致连接重置的端点
             with pytest.raises(Exception):
                 async with client.get("/reset-connection") as response:

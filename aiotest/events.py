@@ -227,7 +227,7 @@ class Events:
 
     def __getattr__(self, name: str) -> EventHook:
         """
-        获取事件钩子，如果不存在则自动注册。
+        获取事件钩子，如果未注册则自动注册。
 
         参数：
             name (str): 事件钩子名称。
@@ -236,7 +236,8 @@ class Events:
             EventHook: 事件钩子实例。
         """
         if name not in self._events:
-            self.register(name)
+            logger.debug("自动注册事件 '%s'", name)
+            self._events[name] = EventHook()
         return self._events[name]
 
     def __dir__(self):

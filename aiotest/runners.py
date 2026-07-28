@@ -265,28 +265,18 @@ class LocalRunner(BaseRunner):
         # 调用父类的初始化方法，确保 machine_id 被正确初始化
         await super().initialize()
 
-        # 数据收集频率配置
-        self.metrics_collection_interval = self.config.metrics_collection_interval  # 默认5秒
-
         # 初始化统一的指标收集器
-        self.metrics_batch_size = self.config.metrics_batch_size  # 默认批量大小 100
-        self.metrics_flush_interval = self.config.metrics_flush_interval  # 默认刷新间隔 1秒
-        self.metrics_buffer_size = self.config.metrics_buffer_size  # 默认缓冲区大小 10000
-
-        self.metrics_collector = await init_metrics_collector(
-            self.node,
-            None,
-            "local",
-            None,
-            batch_size=self.metrics_batch_size,
-            flush_interval=self.metrics_flush_interval,
-            buffer_size=self.metrics_buffer_size
-        )
+        await self._init_metrics(redis_client=None, node_id="local", coordinator=None)
 
         # 启动 Prometheus HTTP 服务（使用通用方法）
         self.prometheus_runner, self.prometheus_server_started = await start_prometheus_service(self.config, self)
 
-        # 初始化监控任务
+    async def start(self) -> None:
+        """启动本地测试"""
+        # 先调用父类启动逻辑
+        await super().start()
+
+        # 启动指标收集任务（在 start() 中启动，而非 initialize()）
         self.task_manager.add_tasks([
             asyncio.create_task(
                 self._collect_node_metrics(),
@@ -314,19 +304,19 @@ class LocalRunner(BaseRunner):
                 self.prometheus_server_started = False
 
             # 停止所有用户
-            await self.user_manager.manage_users(user_count=self.active_user_count, rate=100, action="stop")
+            await self.user_manager.stop_all_users()
 
             # 取消所有后台任务（包括监控任务）
             await self.task_manager.cancel_all_tasks()
-
-            # 触发测试停止事件
-            await test_stop.fire(runner=self)
 
             await self.state_manager.transition_state(RunnerState.READY)
 
         except Exception as e:
             logger.error("停止失败: %s", str(e))
             raise
+        finally:
+            # 无论成功或失败都触发 test_stop 事件，与 WorkerRunner 行为一致
+            await test_stop.fire(runner=self)
 
     async def _collect_node_metrics(self):
         """本地节点指标收集任务（包含CPU收集和指标上报）"""
@@ -393,59 +383,45 @@ class WorkerRunner(BaseRunner):
         self.coordinator = DistributedCoordinator(
             redis_client, role=NODE_TYPE_WORKER, node_id=self.client_id)
 
-    async def _collect_worker_metrics(self) -> None:
-        """收集Worker节点的CPU使用率（使用BaseRunner的通用方法）"""
-        await self._collect_cpu_metrics()
-
     @property
     def load_shape_manager(self):
         """Worker不需要负载形状管理器，返回None"""
         return None
 
     async def initialize(self):
-        """初始化工作节点运行器"""
+        """初始化工作节点运行器（只做配置，不启动后台任务）"""
         # 调用父类的初始化方法，确保 machine_id 被正确初始化
         await super().initialize()
 
-        # 数据收集和上传配置
-        self.metrics_collection_interval = self.config.metrics_collection_interval  # 默认5秒
-        self.metrics_batch_size = self.config.metrics_batch_size  # 默认批量大小 100
-        self.metrics_flush_interval = self.config.metrics_flush_interval  # 默认刷新间隔 1秒
-        self.metrics_buffer_size = self.config.metrics_buffer_size  # 默认缓冲区大小 10000
-
         # 初始化统一的指标收集器（Worker模式：需要传递redis_client、node_id和coordinator）
-        self.metrics_collector = await init_metrics_collector(
-            self.node,
-            self.redis_client,
-            self.client_id,
-            self.coordinator,
-            batch_size=self.metrics_batch_size,
-            flush_interval=self.metrics_flush_interval,
-            buffer_size=self.metrics_buffer_size
+        await self._init_metrics(
+            redis_client=self.redis_client,
+            node_id=self.client_id,
+            coordinator=self.coordinator
         )
 
-        # 启动命令监听任务
-        command_listener_task = asyncio.create_task(
-            self.coordinator.listen_commands(self._handle_command),
-            name="command_listener"
-        )
-
-        # 启动心跳、命令处理任务
-        self.task_manager.add_tasks([
-            asyncio.create_task(
-                self._collect_worker_metrics(),
-                name="worker_metrics_collector"),
-            asyncio.create_task(
-                self._send_heartbeat(),
-                name="worker_heartbeat_sender"),
-            asyncio.create_task(
-                self._check_quit_status(),
-                name="quit_status_checker"),
-            command_listener_task,
-        ])
+        # 保存协程引用，在 start() 中统一启动，避免 initialize 阶段就开始采集数据
+        self._command_listener_coro = self.coordinator.listen_commands(self._handle_command)
+        self._pending_background_tasks = [
+            (self._collect_cpu_metrics, "worker_metrics_collector"),
+            (self._send_heartbeat, "worker_heartbeat_sender"),
+            (self._check_quit_status, "quit_status_checker"),
+        ]
 
         # Worker节点初始化完成
         logger.info("Worker运行器已初始化，ID: %s", self.client_id)
+
+    async def start(self) -> None:
+        """启动Worker后台任务（心跳发送、命令监听、CPU采集等）"""
+
+        # 在 start() 中启动后台任务，而非 initialize()
+        tasks = [
+            asyncio.create_task(coro(), name=name)
+            for coro, name in self._pending_background_tasks
+        ]
+        tasks.append(asyncio.create_task(self._command_listener_coro, name="command_listener"))
+        self.task_manager.add_tasks(tasks)
+        logger.info("Worker %s 后台任务已启动（心跳、命令监听等）", self.client_id)
 
     async def stop(self) -> None:
         """工作节点停止测试"""
@@ -469,7 +445,7 @@ class WorkerRunner(BaseRunner):
             logger.info("Worker %s 已成功停止", self.client_id)
         except Exception as e:
             logger.error("停止失败: %s", str(e), exc_info=True)
-        else:
+        finally:
             # 触发测试停止事件
             await test_stop.fire()
 
@@ -547,31 +523,6 @@ class WorkerRunner(BaseRunner):
             await self._send_startup_completed()
             raise
 
-    async def quit(self):
-        """Worker退出"""
-        if self.state_manager.is_in_quit_state():
-            return
-
-        # 立即设置退出状态，让主循环能够检测到
-        self.state_manager.set_quit_state()
-        await self.state_manager.transition_state(RunnerState.QUITTING)
-
-        # 异步停止所有用户和后台任务，不阻塞主循环
-        async def stop_tasks():
-            try:
-                # 停止所有用户
-                await self.user_manager.manage_users(user_count=self.active_user_count, rate=100, action="stop")
-
-                # 取消所有后台任务
-                await self.task_manager.cancel_all_tasks()
-
-                logger.info("Worker %s 已成功退出", self.client_id)
-            except Exception as e:
-                logger.error("Worker退出过程中出错: %s", str(e))
-                raise
-
-        # 启动一个新任务来停止所有用户和后台任务
-        asyncio.create_task(stop_tasks())
 
 
 # =============================================================================
@@ -648,18 +599,18 @@ class MasterRunner:
     async def initialize(self):
         """初始化主节点运行器"""
         # 批量上传配置
-        metrics_batch_size = self.config.metrics_batch_size  # 默认批量大小 100
-        metrics_flush_interval = self.config.metrics_flush_interval  # 默认刷新间隔 1秒
-        metrics_buffer_size = self.config.metrics_buffer_size  # 默认缓冲区大小 10000
+        self.metrics_batch_size = self.config.metrics_batch_size
+        self.metrics_flush_interval = self.config.metrics_flush_interval
+        self.metrics_buffer_size = self.config.metrics_buffer_size
 
         self.metrics_collector = await init_metrics_collector(
             self.node,
             self.redis_client,
             "master",
             self.coordinator,
-            batch_size=metrics_batch_size,
-            flush_interval=metrics_flush_interval,
-            buffer_size=metrics_buffer_size
+            batch_size=self.metrics_batch_size,
+            flush_interval=self.metrics_flush_interval,
+            buffer_size=self.metrics_buffer_size,
         )
 
         # 启动 Prometheus HTTP 服务（使用通用方法）
@@ -798,7 +749,7 @@ class MasterRunner:
     async def _wait_for_workers_startup_completion(
             self, timeout: float = 30.0) -> None:
         """等待所有Worker启动完成"""
-        start_time = asyncio.get_event_loop().time()
+        start_time = asyncio.get_running_loop().time()
 
         # 使用启动时的Worker数量作为预期数量，避免在等待过程中发现新Worker导致的超时
         expected_count = self._startup_completion_tracker.get(
@@ -814,7 +765,7 @@ class MasterRunner:
                 break
 
             # 检查超时
-            if asyncio.get_event_loop().time() - start_time > timeout:
+            if asyncio.get_running_loop().time() - start_time > timeout:
                 raise RunnerError(
                     f"启动超时: 仅 {completed_count}/{expected_count} 个 Worker 完成")
 
@@ -832,7 +783,7 @@ class MasterRunner:
 
     async def run_until_complete(self) -> None:
         """运行测试直到完成"""
-        if self.load_shape_manager.task:
+        if self.load_shape_manager and self.load_shape_manager.task:
             await self.load_shape_manager.task
 
     async def stop(self) -> None:

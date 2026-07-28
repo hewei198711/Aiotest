@@ -31,6 +31,7 @@ CONNECTOR_SETTINGS = {
     'enable_cleanup_closed': True,  # 默认是否清理已关闭的连接
     'family': 0,  # 0 表示同时支持 IPv4 和 IPv6，使用异步 DNS 解析
     'ssl': None,  # 默认为 None，使用 aiohttp 的默认 SSL 配置
+    'verify_ssl': True,  # 默认是否验证 SSL 证书
 }
 
 

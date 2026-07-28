@@ -210,6 +210,32 @@ class BaseRunner:
         # 获取机器标识符（使用主机名）
         self.machine_id = socket.gethostname()
 
+    async def _init_metrics(self, redis_client=None, node_id=None, coordinator=None):
+        """
+        初始化指标收集器（通用方法，供子类调用）
+
+        参数：
+            redis_client: Redis 客户端（分布式模式需要）
+            node_id: 节点 ID
+            coordinator: 分布式协调器
+        """
+        from aiotest.runners import init_metrics_collector
+
+        self.metrics_collection_interval = self.config.metrics_collection_interval
+        self.metrics_batch_size = self.config.metrics_batch_size
+        self.metrics_flush_interval = self.config.metrics_flush_interval
+        self.metrics_buffer_size = self.config.metrics_buffer_size
+
+        self.metrics_collector = await init_metrics_collector(
+            self.node,
+            redis_client,
+            node_id,
+            coordinator,
+            batch_size=self.metrics_batch_size,
+            flush_interval=self.metrics_flush_interval,
+            buffer_size=self.metrics_buffer_size
+        )
+
     async def start(self) -> None:
         """启动测试：从load_shape获取用户数和速率并执行测试"""
         if not self.load_shape:

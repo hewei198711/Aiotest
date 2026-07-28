@@ -205,7 +205,7 @@ ______________________________________________________________________
 | `show_users_weight` | `bool` | `False` | 显示用户权重 | 所有模式 |
 | `redis_path` | `str` | `127.0.0.1` | Redis服务器地址 | 分布式模式 |
 | `redis_port` | `int` | `6379` | Redis服务器端口 | 分布式模式 |
-| `redis_password` | `str` | `123456` | Redis服务器密码 | 分布式模式 |
+| `redis_password` | `str` | `None` | Redis服务器密码 | 分布式模式 |
 | `master` | `bool` | `False` | 以主节点模式运行 | 分布式模式 |
 | `worker` | `bool` | `False` | 以工作节点模式运行 | 分布式模式 |
 | `expect_workers` | `int` | `1` | 期望连接的工作节点数 | 主节点模式 |

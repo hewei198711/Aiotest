@@ -416,9 +416,10 @@ ______________________________________________________________________
 3. 使用分布式锁保护关键操作：
 
     ```python
-    from aiotest import redis_client, DistributedLock
+    from aiotest import RedisConnection, DistributedLock
 
     async def test_with_lock(self):
+        redis_client = await RedisConnection().get_client()
         async with await DistributedLock.with_lock(redis_client, "critical_section", timeout=10) as lock:
             if lock.locked:
                 # 执行关键操作
@@ -492,7 +493,7 @@ ______________________________________________________________________
 
 ## 其他常见问题
 
-### Q19: 如何暂停和恢复测试
+### Q18: 如何暂停和恢复测试
 
 **问题**: 需要在测试运行过程中暂停和恢复。
 
@@ -509,7 +510,7 @@ await runner.resume()  # 恢复测试
 - 启动测试后，打开浏览器访问 <http://localhost:8089> （默认端口）
 - 您将看到 AioTest 的 Web 控制界面
 
-### Q20: 如何自定义负载形状
+### Q19: 如何自定义负载形状
 
 **问题**: 需要实现特定的负载变化模式。
 

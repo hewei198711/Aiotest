@@ -48,6 +48,8 @@ def __init__(self)
 
 - `start_time (float)`：测试开始时间，用于计算运行时长
 - `paused_time (float)`：暂停开始的时间，用于记录负载形状的暂停时间
+- `is_paused (bool)`：是否处于暂停状态，用于判断负载形状的暂停状态
+- `pause_time (float)`：累计的暂停时间，用于计算实际运行时间
 
 #### 方法说明
 

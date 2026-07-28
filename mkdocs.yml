@@ -11,7 +11,7 @@ repo_url: https://github.com/hewei198711/Aiotest
 theme:
   name: material
   features:
-    - navigation.instant
+    - navigation.instant.prefetch
     - navigation.tracking
     - navigation.tabs
     - navigation.sections

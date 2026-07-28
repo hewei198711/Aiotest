@@ -27,7 +27,7 @@ class TestParseOptions:
         assert options.host == ""
         assert options.redis_path == "127.0.0.1"
         assert options.redis_port == 6379
-        assert options.redis_password == "123456"
+        assert options.redis_password is None
         assert options.master is False
         assert options.worker is False
         assert options.expect_workers == 1

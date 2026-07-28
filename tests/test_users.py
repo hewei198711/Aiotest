@@ -788,7 +788,7 @@ class TestUser:
 
         # 测试超过最大值
         user4 = TestUserClass(max_concurrent_tasks=200)
-        assert user4.max_concurrent_tasks == 100
+        assert user4.max_concurrent_tasks == 200
 
     @allure.story("任务执行")
     @allure.title("详细测试权重对任务执行频率的影响")
@@ -887,7 +887,7 @@ class TestUser:
         user2 = TestUserClass2()
         assert user2.max_concurrent_tasks == 3  # 有 3 个任务时设置为 3
 
-        # 测试任务数量超过 100 时的自动设置
+        # 测试任务数量超过 500 时的自动设置
         class TestUserClass3(User):
             pass
 
@@ -896,7 +896,7 @@ class TestUser:
         try:
             TestUserClass3.jobs = [(lambda self: None, 1) for _ in range(150)]
             user3 = TestUserClass3()
-            assert user3.max_concurrent_tasks == 100  # 任务数量超过 100 时设置为 100
+            assert user3.max_concurrent_tasks == 150  # 任务数量在 500 以内，使用实际任务数
         finally:
             TestUserClass3.jobs = original_jobs
 

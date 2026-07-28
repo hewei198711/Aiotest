@@ -12,24 +12,24 @@
 
 详细的模块 API 文档和实现说明：
 
-| 模块 | 文档 | 描述 |
-| ---- | ---- | ---- |
-| [主模块](MAIN_MODULE_DOC.md) | [查看](MAIN_MODULE_DOC.md) | 命令行解析、测试加载、主入口 |
-| [运行器模块](RUNNERS_MODULE_DOC.md) | [查看](RUNNERS_MODULE_DOC.md) | LocalRunner、MasterRunner、WorkerRunner |
-| [运行器工厂](RUNNER_FACTORY_MODULE_DOC.md) | [查看](RUNNER_FACTORY_MODULE_DOC.md) | 运行器创建和管理 |
-| [用户模块](USERS_MODULE_DOC.md) | [查看](USERS_MODULE_DOC.md) | HttpUser、任务执行、生命周期 |
-| [用户管理器](USER_MANAGER_MODULE_DOC.md) | [查看](USER_MANAGER_MODULE_DOC.md) | 用户创建、停止、管理 |
-| [客户端模块](CLIENTS_MODULE_DOC.md) | [查看](CLIENTS_MODULE_DOC.md) | HTTPClient、连接管理 |
-| [指标模块](METRICS_MODULE_DOC.md) | [查看](METRICS_MODULE_DOC.md) | Prometheus 指标收集 |
-| [负载形状管理器](LOAD_SHAPE_MANAGER_MODULE_DOC.md) | [查看](LOAD_SHAPE_MANAGER_MODULE_DOC.md) | 负载形状执行和管理 |
-| [分布式协调器](DISTRIBUTED_COORDINATOR_MODULE_DOC.md) | [查看](DISTRIBUTED_COORDINATOR_MODULE_DOC.md) | 分布式锁、心跳、发布订阅 |
-| [事件模块](EVENTS_MODULE_DOC.md) | [查看](EVENTS_MODULE_DOC.md) | 事件系统、钩子函数 |
-| [日志模块](LOGGER_MODULE_DOC.md) | [查看](LOGGER_MODULE_DOC.md) | 日志配置、格式化、处理器 |
-| [状态管理器](STATE_MANAGER_MODULE_DOC.md) | [查看](STATE_MANAGER_MODULE_DOC.md) | 状态机、状态转换 |
-| [任务管理器](TASK_MANAGER_MODULE_DOC.md) | [查看](TASK_MANAGER_MODULE_DOC.md) | 任务创建、取消、等待 |
-| [形状模块](SHAPE_MODULE_DOC.md) | [查看](SHAPE_MODULE_DOC.md) | LoadUserShape 基类 |
-| [异常模块](EXCEPTION_MODULE_DOC.md) | [查看](EXCEPTION_MODULE_DOC.md) | 自定义异常类 |
-| [命令行模块](CLI_MODULE_DOC.md) | [查看](CLI_MODULE_DOC.md) | 命令行参数解析和配置 |
+| 模块 | 描述 |
+| ---- | ---- |
+| [主模块](MAIN_MODULE_DOC.md) | 命令行解析、测试加载、主入口 |
+| [运行器模块](RUNNERS_MODULE_DOC.md) | LocalRunner、MasterRunner、WorkerRunner |
+| [运行器工厂](RUNNER_FACTORY_MODULE_DOC.md) | 运行器创建和管理 |
+| [用户模块](USERS_MODULE_DOC.md) | HttpUser、任务执行、生命周期 |
+| [用户管理器](USER_MANAGER_MODULE_DOC.md) | 用户创建、停止、管理 |
+| [客户端模块](CLIENTS_MODULE_DOC.md) | HTTPClient、连接管理 |
+| [指标模块](METRICS_MODULE_DOC.md) | Prometheus 指标收集 |
+| [负载形状管理器](LOAD_SHAPE_MANAGER_MODULE_DOC.md) | 负载形状执行和管理 |
+| [分布式协调器](DISTRIBUTED_COORDINATOR_MODULE_DOC.md) | 分布式锁、心跳、发布订阅 |
+| [事件模块](EVENTS_MODULE_DOC.md) | 事件系统、钩子函数 |
+| [日志模块](LOGGER_MODULE_DOC.md) | 日志配置、格式化、处理器 |
+| [状态管理器](STATE_MANAGER_MODULE_DOC.md) | 状态机、状态转换 |
+| [任务管理器](TASK_MANAGER_MODULE_DOC.md) | 任务创建、取消、等待 |
+| [形状模块](SHAPE_MODULE_DOC.md) | LoadUserShape 基类 |
+| [异常模块](EXCEPTION_MODULE_DOC.md) | 自定义异常类 |
+| [命令行模块](CLI_MODULE_DOC.md) | 命令行参数解析和配置 |
 
 ### 📝 指南文档
 
@@ -80,7 +80,6 @@
 
 ## 🔗 外部资源
 
-- **官方网站**: [https://aiotest.io](https://aiotest.io)
 - **GitHub 仓库**: [https://github.com/hewei198711/Aiotest](https://github.com/hewei198711/Aiotest)
 - **PyPI 包**: [https://pypi.org/project/aiotest/](https://pypi.org/project/aiotest/)
 

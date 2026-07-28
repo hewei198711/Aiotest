@@ -458,7 +458,7 @@ EXCLUDE_PATTERNS = [
 # linux主机用户名和密码
 
 USERNAME = "root"
-PASSWORD = "ligeit"
+PASSWORD = os.getenv("DB_PASSWORD", "")
 
 ```
 
@@ -545,13 +545,13 @@ master:
     build: .
     image: aiotest:latest
     ports:
-  -- "8089:8089"
+      - "8089:8089"
     volumes:
-  -- .:/app
+      - .:/app
     pid: host  # 允许访问宿主机的进程信息
     user: "1000:1000"  # 使用aiotest用户(UID:1000)
     environment:
-  -- TZ=Asia/Shanghai
+      - TZ=Asia/Shanghai
     command: aiotest -f aiotestfile.py --master --expect-workers 1 --redis-path 122.16.40.25 --redis-port 6379 --redis-password test123456
 
 
@@ -561,11 +561,11 @@ worker:
     build: .
     image: aiotest:latest
     volumes:
-  -- .:/app
+      - .:/app
     pid: host  # 允许访问宿主机的进程信息
     user: "1000:1000"  # 使用aiotest用户(UID:1000)
     environment:
-  -- TZ=Asia/Shanghai
+      - TZ=Asia/Shanghai
     command: aiotest -f aiotestfile.py --worker --redis-path 122.16.40.25 --redis-port 6379 --redis-password test123456 --loglevel WARNING
     deploy:
         replicas: 4

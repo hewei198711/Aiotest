@@ -293,18 +293,18 @@ class User(metaclass=UserMeta):
         total_weight_exceeds = False
         if max_concurrent_tasks is not None:
             # 用户指定了并发数
-            self.max_concurrent_tasks = max(min(max_concurrent_tasks, 100), 1)
+            self.max_concurrent_tasks = max(min(max_concurrent_tasks, 500), 1)
         else:
             # 自动基于总权重设置
             jobs = getattr(self, 'jobs', [])
             total_weight = sum(weight for _, weight in jobs)
-            if total_weight > 100:
+            if total_weight > 500:
                 total_weight_exceeds = True
-            self.max_concurrent_tasks = max(min(total_weight, 100), 1)
+            self.max_concurrent_tasks = max(min(total_weight, 500), 1)
 
         # 检查并警告总权重超限
         if total_weight_exceeds:
-            logger.warning("总权重 %d 超过最大并发限制 100，将并发数限制为 100，或者请检查权重设置是否合理，重新开启测试", total_weight)
+            logger.warning("总权重 %d 超过最大并发限制 500，将并发数限制为 500，或者请检查权重设置是否合理，重新开启测试", total_weight)
 
         if execution_mode is not None:
             self.execution_mode = execution_mode
@@ -418,7 +418,8 @@ class User(metaclass=UserMeta):
                 await self._run_sequential()
 
         except asyncio.CancelledError:
-            await self.on_stop()
+            # on_stop() 由 stop_tasks() 统一调用，避免重复执行
+            pass
         except Exception as e:
             await self._handle_error(e)
             await self.on_stop()

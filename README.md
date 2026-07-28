@@ -220,10 +220,13 @@ aiotest -f examples/distributed_example.py \
 分布式测试使用 Redis 作为协调和数据共享的媒介：
 
 ```python
-from aiotest import redis_client, DistributedLock
+from aiotest import RedisConnection, DistributedLock
 import json
 
 async def test_shared_data(self):
+    # 获取 Redis 客户端
+    redis_client = await RedisConnection().get_client()
+
     # 分布式锁示例
     async with await DistributedLock.with_lock(redis_client, "test_lock", timeout=10) as lock:
         if not lock.locked:
@@ -243,11 +246,11 @@ async def test_shared_data(self):
 
 #### 数据表概览
 
-![数据表概览](%E6%95%B0%E6%8D%AE%E8%A1%A8.jpg)
+![数据表概览](data_table.jpg)
 
 #### 控制中心界面
 
-![控制中心](%E6%8E%A7%E5%88%B6%E4%B8%AD%E5%BF%83.jpg)
+![控制中心](control_center.jpg)
 
 控制中心提供了直观的测试管理界面，支持以下功能：
 

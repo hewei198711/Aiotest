@@ -33,13 +33,23 @@ class _BaseMockRedisClient:
                     yield  # noqa: 保持生成器接口
         return MockPubSub()
 
-    async def pubsub(self, *args, **kwargs):
+    def pubsub(self, *args, **kwargs):
         """返回模拟的PubSub对象，支持subscribe/get_message/listen"""
+
         class MockPubSub:
             async def subscribe(self, *args, **kwargs):
                 pass
 
+            async def unsubscribe(self, *args, **kwargs):
+                pass
+
+            async def close(self, *args, **kwargs):
+                pass
+
             async def get_message(self, *args, **kwargs):
+                # 模拟真实Redis的等待行为，避免死循环阻塞事件循环
+                timeout = kwargs.get('timeout', 1.0)
+                await asyncio.sleep(timeout)
                 return None
 
             async def listen(self, *args, **kwargs):
@@ -73,8 +83,6 @@ class _BaseMockRedisClient:
 
     async def close(self):
         pass
-
-
 
 
 @allure.feature("辅助函数")

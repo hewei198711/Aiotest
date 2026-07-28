@@ -182,8 +182,9 @@ class SimpleLoadShape(LoadUserShape):
     """简单的负载形状实现"""
     def tick(self):
         # 逐步增加用户数，然后保持稳定
-        if self.duration < 60:
-            return (self.duration // 10 + 1, 1.0)  # 每10秒增1个用户
+        run_time = self.get_run_time()
+        if run_time < 60:
+            return (run_time // 10 + 1, 1.0)  # 每10秒增1个用户
         else:
             return (6, 1.0)  # 保持6个用户
 

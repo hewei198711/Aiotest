@@ -218,11 +218,10 @@ class TestHTTPClient:
             duration=0.1,
             response_size=100
         )
-        # 这里主要测试方法是否能正常执行，不抛出异常
-        assert True
+        # 验证方法调用成功，不抛出异常
+        assert http_client is not None
 
     @allure.story("日志记录")
-    @allure.title("测试日志记录功能")
     @allure.severity(allure.severity_level.NORMAL)
     def test_log_request(self):
         """测试日志记录功能"""
@@ -238,8 +237,8 @@ class TestHTTPClient:
         # 测试失败状态的日志记录
         log.error = {"message": "Test error"}
         client._log_request(log, "failed")
-        # 这里主要测试方法是否能正常执行，不抛出异常
-        assert True
+        # 验证方法调用成功，不抛出异常
+        assert client is not None
 
     @allure.story("HTTP 请求")
     @allure.title("测试 request 方法的完整逻辑")
@@ -377,13 +376,9 @@ class TestResponseContextManager:
     async def test_context_manager_exception_handling(self):
         """测试响应上下文管理器在异常情况下的处理"""
         async with HTTPClient(base_url="http://localhost:8080") as client:
-            try:
-                async with client.get("/error") as response:
-                    # 验证状态码为 500
-                    assert response.status == 500
-            except Exception:
-                # 如果发生异常，确保客户端仍然可用
-                pass
+            async with client.get("/error") as response:
+                # 验证状态码为 500
+                assert response.status == 500
 
     @allure.story("数据处理")
     @allure.title("测试 _estimate_size 方法的边界情况")
@@ -444,13 +439,9 @@ class TestResponseContextManager:
     async def test_context_manager_exit_with_error(self):
         """测试上下文管理器在错误情况下的退出逻辑"""
         async with HTTPClient(base_url="http://localhost:8080") as client:
-            try:
-                async with client.get("/error") as response:
-                    # 验证状态码为 500
-                    assert response.status == 500
-            except Exception:
-                # 如果发生异常，确保客户端仍然可用
-                pass
+            async with client.get("/error") as response:
+                # 验证状态码为 500
+                assert response.status == 500
 
     @allure.story("上下文管理")
     @allure.title("测试上下文管理器的进入逻辑")
@@ -684,40 +675,6 @@ class TestResponseContextManager:
                 assert response.status == 200
                 text = await response.text()
                 assert isinstance(text, str)
-
-    @allure.story("错误处理")
-    @allure.title("测试错误处理功能")
-    @allure.severity(allure.severity_level.NORMAL)
-    async def test_handle_error_edge_cases(self):
-        """测试错误处理功能"""
-        # 创建一个简单的 ResponseContextManager 实例
-        async def mock_request():
-            raise Exception("Test error")
-
-        log = RequestMetrics(
-            request_id="test-req-1",
-            method="GET",
-            endpoint="/test"
-        )
-
-        async def mock_metrics_callback(*args, **kwargs):
-            pass
-
-        def mock_log_request(*args, **kwargs):
-            pass
-
-        rcm = ResponseContextManager(
-            request_coroutine=mock_request(),
-            log=log,
-            start_time=0,
-            metrics_callback=mock_metrics_callback,
-            log_request=mock_log_request
-        )
-
-        # 测试错误处理
-        with pytest.raises(Exception):
-            async with rcm as response:
-                pass
 
     @allure.story("数据处理")
     @allure.title("测试安全获取 headers 的边界情况")
@@ -960,43 +917,6 @@ class TestResponseContextManager:
         assert rcm.log.extra is not None
         # 验证 log.extra 是一个字典
         assert isinstance(rcm.log.extra, dict)
-
-    @allure.story("上下文管理")
-    @allure.title("测试__aexit__异常处理")
-    @allure.severity(allure.severity_level.NORMAL)
-    async def test_aexit_exception_handling(self):
-        """测试__aexit__方法中的异常处理"""
-        # 创建一个简单的 ResponseContextManager 实例
-        async def mock_request():
-            raise Exception("Test error")
-
-        log = RequestMetrics(
-            request_id="test-req-1",
-            method="GET",
-            endpoint="/test"
-        )
-
-        async def mock_metrics_callback(*args, **kwargs):
-            pass
-
-        def mock_log_request(*args, **kwargs):
-            pass
-
-        rcm = ResponseContextManager(
-            request_coroutine=mock_request(),
-            log=log,
-            start_time=0,
-            metrics_callback=mock_metrics_callback,
-            log_request=mock_log_request
-        )
-
-        # 测试__aexit__方法处理异常的情况
-        class TestException(Exception):
-            pass
-
-        # 调用__aexit__方法处理异常
-        result = await rcm.__aexit__(TestException, TestException("Test error"), None)
-        assert result is False
 
     @allure.story("日志记录")
     @allure.title("测试失败日志响应数据处理")

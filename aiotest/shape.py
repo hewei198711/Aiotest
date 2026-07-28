@@ -69,10 +69,10 @@ class LoadUserShape(metaclass=ABCMeta):
             10.5  # 运行了10.5秒
     """
         if self.is_paused:
-            current_time = self.paused_time
+            last_active_time = self.paused_time
         else:
-            current_time = default_timer()
-        return current_time - self.start_time - self.pause_time
+            last_active_time = default_timer()
+        return last_active_time - self.start_time - self.pause_time
 
     def pause(self) -> None:
         """

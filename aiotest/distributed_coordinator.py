@@ -8,7 +8,7 @@ from typing import Optional, Any
 from uuid import uuid4
 
 from redis.asyncio import Redis
-from redis.asyncio.connection import ConnectionPool
+from redis.asyncio.connection import ConnectionPool as RedisConnectionPool
 
 from aiotest.logger import logger
 
@@ -39,7 +39,7 @@ class RedisConnection:
             max_retries: 最大重试次数，默认3次
             retry_interval: 初始重试间隔（秒），默认1秒，后续使用指数退避
         """
-        self._pool: Optional[ConnectionPool] = None
+        self._pool: Optional[RedisConnectionPool] = None
         self._client: Optional[Redis] = None
         self.max_retries = max_retries
         self.retry_interval = retry_interval
@@ -67,9 +67,12 @@ class RedisConnection:
                     if self._pool is None:
                         logger.debug(
                             "创建新的连接池: %s:%s", path, port)
-                        self._pool = ConnectionPool.from_url(
-                            f"redis://:{password}@{path}:{port}/0",
-                            decode_responses=True
+                        self._pool = RedisConnectionPool(
+                            host=path,
+                            port=port,
+                            password=password,
+                            db=0,
+                            decode_responses=True,
                         )
                     self._client = Redis(connection_pool=self._pool)
                     # 测试连接是否可用
@@ -139,7 +142,7 @@ class DistributedLock:
         redis: Redis,
         lock_key: str,
         timeout: float = 10.0,
-        wait_timeout: float = None,
+        wait_timeout: Optional[float] = None,
         retry_interval: float = 0.1
     ):
         """
@@ -170,7 +173,7 @@ class DistributedLock:
         logger.debug("尝试获取分布式锁: %s, 超时: %.1fs, 等待超时: %s",
                      self.lock_key, self.timeout,
                      f"{self.wait_timeout:.1f}s" if self.wait_timeout else "不等待")
-        start_time = asyncio.get_event_loop().time()
+        start_time = asyncio.get_running_loop().time()
 
         while True:
             # 尝试获取锁 (SET lock_key identifier NX PX timeout)
@@ -183,7 +186,7 @@ class DistributedLock:
 
             if acquired:
                 self.locked = True
-                elapsed = asyncio.get_event_loop().time() - start_time
+                elapsed = asyncio.get_running_loop().time() - start_time
                 logger.debug("分布式锁获取成功: %s, 耗时: %.3fs", self.lock_key, elapsed)
                 return True
 
@@ -192,7 +195,7 @@ class DistributedLock:
                 logger.warning("分布式锁获取失败(不等待): %s", self.lock_key)
                 return False
 
-            elapsed = asyncio.get_event_loop().time() - start_time
+            elapsed = asyncio.get_running_loop().time() - start_time
             if elapsed >= self.wait_timeout:
                 logger.warning("分布式锁获取超时: %s, 等待: %.3fs", self.lock_key, elapsed)
                 return False
@@ -247,7 +250,7 @@ class DistributedLock:
         redis: Redis,
         lock_key: str,
         timeout: float = 10.0,
-        wait_timeout: float = None
+        wait_timeout: Optional[float] = None
     ):
         """
         锁的快捷使用方式
@@ -397,7 +400,7 @@ class DistributedCoordinator:
             batch_dict = {
                 'batch': data,
                 'worker_id': worker_id,
-                'timestamp': asyncio.get_event_loop().time(),
+                'timestamp': asyncio.get_running_loop().time(),
                 'compressed': compressed
             }
             
@@ -513,14 +516,11 @@ class DistributedCoordinator:
                     await asyncio.sleep(HEARTBEAT_INTERVAL)
 
                 except asyncio.CancelledError:
-                    # 任务被取消，记录日志并退出
-                    logger.info("心跳监听器任务已取消")
                     raise
                 except Exception as e:
                     logger.error("心跳监听器错误: %s", str(e))
                     await asyncio.sleep(HEARTBEAT_INTERVAL)
         except asyncio.CancelledError:
-            # 任务被取消，记录日志并退出
             logger.info("心跳监听器已停止")
             raise
 
@@ -591,15 +591,12 @@ class DistributedCoordinator:
                                     str(e))
 
                 except asyncio.CancelledError:
-                    # 任务被取消，记录日志并退出
-                    logger.info("请求指标监听器任务已取消")
                     raise
                 except Exception as e:
                     logger.warning("Redis消息处理错误: %s", str(e))
                     await asyncio.sleep(0.1)
 
         except asyncio.CancelledError:
-            # 任务被取消，记录日志并退出
             logger.info("请求指标监听器已停止")
             raise
         except Exception as e:
@@ -685,8 +682,8 @@ class DistributedCoordinator:
                         break
 
             except asyncio.CancelledError:
-                # 任务被取消，记录日志
                 logger.info("命令监听器任务已取消")
+                raise
             except Exception as e:
                 logger.error("命令监听器错误: %s", str(e))
                 # 出错后，等待一段时间再继续监听

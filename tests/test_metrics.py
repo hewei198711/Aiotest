@@ -155,6 +155,7 @@ class TestMetricsCollector:
         }
 
         await collector.record_node_metrics(metrics_data)
+        assert collector is not None
 
     @allure.story("节点指标")
     @allure.title("测试记录节点指标边界值")
@@ -176,6 +177,7 @@ class TestMetricsCollector:
         }
 
         await collector.record_node_metrics(metrics_data)
+        assert collector is not None
 
     @allure.story("节点指标")
     @allure.title("测试记录节点指标无效数据")
@@ -190,6 +192,7 @@ class TestMetricsCollector:
         }
 
         await collector.record_node_metrics(invalid_data)
+        assert collector is not None
 
 
 @allure.feature("请求指标处理")
@@ -293,6 +296,7 @@ class TestRequestMetricsProcessing:
         await collector.start()
 
         await collector.process_request_metrics()
+        assert collector is not None
 
         await collector.stop()
 
@@ -498,6 +502,7 @@ class TestBufferManagement:
         await asyncio.sleep(0.2)
 
         await collector.stop()
+        assert collector is not None
 
     @allure.story("缓冲区")
     @allure.title("测试缓冲区大小限制")

@@ -1,5 +1,7 @@
 # AioTest 最佳实践指南
 
+> 如果你是第一次使用 AioTest，请先阅读 [快速入门指南](quickstart.md)。本指南面向有经验的用户，提供进阶实践和优化建议。
+
 本指南提供了 AioTest 负载测试的最佳实践，帮助您设计高效、可靠的负载测试。
 
 ## 📋 目录
@@ -89,8 +91,8 @@ class BrowsingUser(HttpUser):
     """浏览型用户：主要进行读取操作"""
     weight = 3
     host = "https://api.example.com"
-            wait_time = (2, 5)
-            execution_mode = ExecutionMode.CONCURRENT
+    wait_time = (2, 5)
+    execution_mode = ExecutionMode.CONCURRENT
 
     @weight(5)
     async def test_view_products(self):
@@ -106,8 +108,8 @@ class ShoppingUser(HttpUser):
     """购物型用户：包含写入操作"""
     weight = 1
     host = "https://api.example.com"
-            wait_time = (1, 3)
-            execution_mode = ExecutionMode.CONCURRENT
+    wait_time = (1, 3)
+    execution_mode = ExecutionMode.CONCURRENT
 
     @weight(2)
     async def test_add_to_cart(self):
@@ -290,11 +292,13 @@ class ConnectionPoolOptimizedUser(HttpUser):
         await super().on_start()
 
         # 配置连接池
-        self.client.connector = aiohttp.TCPConnector(
-            limit=100,              # 最大连接数
-            limit_per_host=50,      # 每个主机的最大连接数
-            force_close=False,        # 不强制关闭连接
-            enable_cleanup_closed=True  # 清理已关闭的连接
+        from aiotest import configure_connector
+
+        configure_connector(
+            limit=100,
+            limit_per_host=50,
+            force_close=True,
+            enable_cleanup_closed=True,
         )
 
 ```

@@ -35,27 +35,27 @@ ______________________________________________________________________
 
 #### 方法
 
-##### `on_start(self)` -> `None`
+##### `async on_start(self)` -> `None`
 
 用户启动时调用，用于初始化资源。
 
-##### `on_stop(self)` -> `None`
+##### `async on_stop(self)` -> `None`
 
 用户停止时调用，用于清理资源。
 
-##### `start_tasks(self)` -> `None`
+##### `async start_tasks(self)` -> `None`
 
 启动用户任务。
 
-##### `stop_tasks(self)` -> `None`
+##### `async stop_tasks(self)` -> `None`
 
 停止用户任务。
 
-##### `pause_tasks(self)` -> `None`
+##### `async pause_tasks(self)` -> `None`
 
 暂停用户任务。
 
-##### `resume_tasks(self)` -> `None`
+##### `async resume_tasks(self)` -> `None`
 
 恢复用户任务。
 
@@ -374,7 +374,7 @@ ______________________________________________________________________
 
 **参数**:
 
-- `node`: 节点类型
+- `node_type`: 节点类型
 - `redis_client`: Redis 客户端
 - `node_id`: 节点 ID
 - `coordinator`: 分布式协调器

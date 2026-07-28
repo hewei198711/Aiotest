@@ -48,11 +48,15 @@ async def main():
     redis_connection = None
     redis_client = None
     if options.master or options.worker:
+        redis_password = options.redis_password
+        if not redis_password:
+            logger.warning("Redis password not set. Use --redis-password or AIOTEST_REDIS_PASSWORD env var")
+            redis_password = ""
         redis_connection = RedisConnection()
         redis_client = await redis_connection.get_client(
             path=options.redis_path,
             port=options.redis_port,
-            password=options.redis_password
+            password=redis_password
         )
 
     # 加载测试文件
@@ -114,6 +118,8 @@ async def main():
             await asyncio.sleep(2)
     elif options.worker:
         runner = await RunnerFactory.create("worker", user_classes, shape_instance, options, redis_client)
+        # Worker 必须调用 start() 来启动心跳发送和命令监听等后台任务
+        await runner.start()
     else:
         runner = await RunnerFactory.create("local", user_classes, shape_instance, options)
 
@@ -135,7 +141,7 @@ async def main():
                         await asyncio.sleep(1)
 
                 tg.create_task(worker_run())
-    except (TimeoutError, KeyboardInterrupt, asyncio.CancelledError):
+    except (KeyboardInterrupt, asyncio.CancelledError):
         await runner.quit()
         # 给Worker节点足够的时间来接收和处理quit命令
         await asyncio.sleep(3.0)

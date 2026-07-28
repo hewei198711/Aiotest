@@ -7,17 +7,11 @@ import sys
 from functools import lru_cache
 from typing import Dict, Optional, Tuple, Type
 
-# 检查Python版本
-if sys.version_info < (3, 11):
-    print("错误: AioTest 需要 Python 3.11 或更高版本。")
-    print(f"您正在使用 Python {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}")
-    sys.exit(1)
+import importlib.metadata
 
 from aiotest.logger import logger
 from aiotest.shape import LoadUserShape
 from aiotest.users import User
-
-version = "1.1.0"
 
 
 def parse_options(args=None):
@@ -74,7 +68,7 @@ def parse_options(args=None):
     parser.add_argument(
         '-V', '--version',
         action='version',
-        version='%(prog)s {}'.format(version),
+        version=f'aiotest {importlib.metadata.version("aiotest")}',
     )
 
     # Redis参数
@@ -93,8 +87,8 @@ def parse_options(args=None):
 
     group_redis.add_argument(
         '--redis-password',
-        default="123456",
-        help="Redis服务器密码"
+        default=None,
+        help="Redis服务器密码（建议通过环境变量 AIOTEST_REDIS_PASSWORD 设置）"
     )
 
     # 分布式参数

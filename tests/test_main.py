@@ -13,6 +13,7 @@ from aiotest.main import main
 test_file_content_with_users = """
 from aiotest.users import User
 from aiotest.shape import LoadUserShape
+from aiotest import init_events
 
 class TestUser(User):
     weight = 1
@@ -57,6 +58,7 @@ async def on_init_events():
 test_file_content_with_print = """
 from aiotest.users import User
 from aiotest.shape import LoadUserShape
+from aiotest import init_events
 
 class TestUser(User):
     weight = 1
@@ -179,6 +181,7 @@ class TestMain:
     @allure.story("文件描述符限制")
     @allure.title("测试文件描述符限制检查")
     @allure.severity(allure.severity_level.NORMAL)
+    @pytest.mark.skipif(sys.platform == "win32", reason="文件描述符限制检查仅在 POSIX 系统上支持")
     def test_main_file_descriptor_limit(self):
         """测试文件描述符限制检查"""
         # 创建临时测试文件
@@ -186,19 +189,10 @@ class TestMain:
         try:
             with open(test_file, 'w') as f:
                 f.write(test_file_content_with_events)
-            # 测试文件描述符限制检查（通过模拟非Windows环境）
-            import os
-            original_os_name = os.name
-            try:
-                # 模拟非Windows环境
-                os.name = "posix"
-                # 测试文件描述符限制检查
-                sys.argv = ["aiotest", "-f", test_file, "--show-users-weight"]
-                with pytest.raises(SystemExit):
-                    asyncio.run(main())
-            finally:
-                # 恢复原始环境
-                os.name = original_os_name
+            # 测试文件描述符限制检查
+            sys.argv = ["aiotest", "-f", test_file, "--show-users-weight"]
+            with pytest.raises(SystemExit):
+                asyncio.run(main())
         finally:
             # 清理临时文件
             if os.path.exists(test_file):

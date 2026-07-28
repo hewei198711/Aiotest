@@ -5,6 +5,7 @@ Pytest 配置文件
 包含共享的 fixtures 和配置，可以被所有测试文件使用
 """
 
+import asyncio
 import os
 
 import pytest
@@ -16,10 +17,10 @@ from aiotest import HTTPClient, HttpUser, LoadUserShape, User
 # 常量配置（从环境变量读取，避免硬编码私密 IP）
 # ============================================
 
-# Redis 连接配置
-REDIS_HOST = "172.16.40.25"
-REDIS_PORT = 6379
-REDIS_PASSWORD = "test123456"
+# Redis 连接配置（优先从环境变量读取，适配 CI 环境）
+REDIS_HOST = os.environ.get("AIOTEST_REDIS_HOST", "172.16.40.25")
+REDIS_PORT = int(os.environ.get("AIOTEST_REDIS_PORT", "6379"))
+REDIS_PASSWORD = os.environ.get("AIOTEST_REDIS_PASSWORD", "test123456") or None
 
 # 测试服务器配置
 TEST_HOST = "http://localhost:8080"
@@ -254,13 +255,23 @@ def mock_redis_client():
             return MockPubSub()
 
 
-        async def pubsub(self, *args, **kwargs):
+        def pubsub(self, *args, **kwargs):
             """返回一个模拟的PubSub对象，用于subscribe/get_message/listen"""
+            # 注意：真实 redis.asyncio.Redis.pubsub() 是同步方法，不是 async
             class MockPubSub:
                 async def subscribe(self, *args, **kwargs):
                     pass
 
+                async def unsubscribe(self, *args, **kwargs):
+                    pass
+
+                async def close(self, *args, **kwargs):
+                    pass
+
                 async def get_message(self, *args, **kwargs):
+                    # 模拟真实Redis的等待行为，避免死循环阻塞事件循环
+                    timeout = kwargs.get('timeout', 1.0)
+                    await asyncio.sleep(timeout)
                     return None
 
                 async def listen(self, *args, **kwargs):

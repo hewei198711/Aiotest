@@ -1,0 +1,56 @@
+name: Test
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'docs/**'
+      - '*.md'
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install lint tools
+        run: pip install ruff pylint mypy types-redis
+      - name: Run ruff
+        run: ruff check aiotest/ tests/
+      - name: Run mypy
+        run: mypy aiotest/ --ignore-missing-imports || true
+
+  test:
+    needs: lint
+    runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pytest-benchmark
+      - name: Run tests with coverage
+        env:
+          AIOTEST_REDIS_HOST: localhost
+          AIOTEST_REDIS_PORT: "6379"
+          AIOTEST_REDIS_PASSWORD: ""
+        run: |
+          python -m pytest tests/ -v
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          files: ./coverage.xml
+          flags: unittests

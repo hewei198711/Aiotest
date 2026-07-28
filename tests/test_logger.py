@@ -149,7 +149,7 @@ class TestLogger:
                 log_dir=temp_dir,
                 log_level="DEBUG")
             logger_instance.debug("Debug message")
-            # 这里我们只测试方法调用，不验证日志内容
+            assert logger_instance is not None
 
             # 关闭日志处理器，释放文件锁
             for handler in logger_instance.logger.handlers:
@@ -169,7 +169,7 @@ class TestLogger:
         with tempfile.TemporaryDirectory() as temp_dir:
             logger_instance = Logger(name="test_log", log_dir=temp_dir)
             logger_instance.info("Info message")
-            # 这里我们只测试方法调用，不验证日志内容
+            assert logger_instance is not None
 
             # 关闭日志处理器，释放文件锁
             for handler in logger_instance.logger.handlers:
@@ -189,7 +189,7 @@ class TestLogger:
         with tempfile.TemporaryDirectory() as temp_dir:
             logger_instance = Logger(name="test_log", log_dir=temp_dir)
             logger_instance.warning("Warning message")
-            # 这里我们只测试方法调用，不验证日志内容
+            assert logger_instance is not None
 
             # 关闭日志处理器，释放文件锁
             for handler in logger_instance.logger.handlers:
@@ -209,7 +209,7 @@ class TestLogger:
         with tempfile.TemporaryDirectory() as temp_dir:
             logger_instance = Logger(name="test_log", log_dir=temp_dir)
             logger_instance.error("Error message")
-            # 这里我们只测试方法调用，不验证日志内容
+            assert logger_instance is not None
 
             # 关闭日志处理器，释放文件锁
             for handler in logger_instance.logger.handlers:
@@ -229,7 +229,7 @@ class TestLogger:
         with tempfile.TemporaryDirectory() as temp_dir:
             logger_instance = Logger(name="test_log", log_dir=temp_dir)
             logger_instance.critical("Critical message")
-            # 这里我们只测试方法调用，不验证日志内容
+            assert logger_instance is not None
 
             # 关闭日志处理器，释放文件锁
             for handler in logger_instance.logger.handlers:

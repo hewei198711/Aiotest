@@ -249,8 +249,8 @@ class TestDistributedCoordinator:
         coordinator = DistributedCoordinator(redis_client, role="master")
         await coordinator.publish("command", {"task_id": 123}, command="start_task")
 
-        # 验证发布成功
-        assert True
+        # 验证发布成功，不抛出异常
+        assert coordinator is not None
 
     @allure.story("发布")
     @allure.title("测试发布请求指标")
@@ -262,8 +262,8 @@ class TestDistributedCoordinator:
         metrics_data = [{"url": "/test", "response_time": 0.1}]
         await coordinator.publish("request_metrics", metrics_data, worker_id="worker_1")
 
-        # 验证发布成功
-        assert True
+        # 验证发布成功，不抛出异常
+        assert coordinator is not None
 
     @allure.story("发布")
     @allure.title("测试发布批量请求指标")
@@ -277,8 +277,8 @@ class TestDistributedCoordinator:
                         for i in range(MAX_BATCH_SIZE + 1)]
         await coordinator.publish("request_metrics", metrics_data, worker_id="worker_1")
 
-        # 验证发布成功
-        assert True
+        # 验证发布成功，不抛出异常
+        assert coordinator is not None
 
     @allure.story("发布")
     @allure.title("测试发布命令缺少参数")
@@ -309,8 +309,8 @@ class TestDistributedCoordinator:
             redis_client, role="worker", node_id="worker_1")
         await coordinator.publish("heartbeat", {"cpu_percent": 45.0, "active_users": 100})
 
-        # 验证心跳发布成功
-        assert True
+        # 验证心跳发布成功，不抛出异常
+        assert coordinator is not None
 
     @allure.story("发布")
     @allure.title("测试发布无效频道类型")
@@ -400,8 +400,8 @@ class TestDistributedCoordinator:
         """测试监听命令"""
         coordinator = DistributedCoordinator(redis_client, role="master")
 
-        # 验证初始化成功
-        assert coordinator is not None
+        # 验证初始化成功，角色正确
+        assert coordinator.role == "master"
 
     @allure.story("监听")
     @allure.title("测试监听心跳任务取消")

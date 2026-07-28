@@ -389,7 +389,7 @@ class TestStateManagement:
 
         # 启动用户后
         await manager._start_users(5, 10.0)
-        assert manager.active_user_count >= 0
+        assert manager.active_user_count == 5
 
     @allure.story("状态管理")
     @allure.title("测试清理非活跃用户")

@@ -172,13 +172,13 @@ class EventsUser(HttpUser):
 
     async def test_get_status_404(self):
         """测试 404 错误"""
-        async with self.client.get(endpoint="/status/404"):
-            print(f"⚠️  请求返回 404: GET /status/404")
+        async with self.client.get(endpoint="/status/404") as resp:
+            print(f"⚠️  请求返回 {resp.status}: GET /status/404")
 
     async def test_get_status_500(self):
         """测试 500 错误"""
-        async with self.client.get(endpoint="/status/500"):
-            print(f"❌ 请求返回 500: GET /status/500")
+        async with self.client.get(endpoint="/status/500") as resp:
+            print(f"❌ 请求返回 {resp.status}: GET /status/500")
 
 
 # ============================================================================

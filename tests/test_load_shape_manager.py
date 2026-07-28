@@ -208,6 +208,9 @@ class TestLoadShapeManager:
         # 停止
         await manager.stop()
 
+        # 验证错误确实发生了
+        assert error_count > 0
+
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

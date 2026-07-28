@@ -416,6 +416,7 @@ class TestBaseRunnerAsyncMethods:
 
         # 启动测试
         await runner.start()
+        assert runner is not None
 
     @allure.story("启动测试")
     @allure.title("测试启动测试无负载形状")
@@ -565,6 +566,7 @@ class TestHighRateWarning:
         # 调用验证函数，触发高速率警告（应该正常执行，不抛出异常）
         validate_load_params(user_count=200, rate=150.0)
         # 如果函数正常执行，说明警告已记录（日志输出到控制台）
+        assert True
 
 
 if __name__ == "__main__":

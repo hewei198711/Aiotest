@@ -16,6 +16,7 @@ AioTest 事件系统测试模块
 
 import asyncio
 
+import allure
 import pytest
 
 from aiotest.events import EventHook, Events
@@ -25,9 +26,13 @@ from aiotest.events import EventHook, Events
 # ============================================================================
 
 
+@allure.feature("EventHook 基础功能")
 class TestEventHookBasic:
     """测试 EventHook 基础功能"""
 
+    @allure.story("添加处理器")
+    @allure.title("测试添加事件处理器")
+    @allure.severity(allure.severity_level.CRITICAL)
     @pytest.mark.asyncio
     async def test_add_handler(self):
         """测试添加事件处理器"""
@@ -43,6 +48,9 @@ class TestEventHookBasic:
 
         assert called, "处理器应该被调用"
 
+    @allure.story("优先级")
+    @allure.title("测试带优先级的处理器执行顺序")
+    @allure.severity(allure.severity_level.CRITICAL)
     @pytest.mark.asyncio
     async def test_add_handler_with_priority(self):
         """测试带优先级的处理器执行顺序"""
@@ -69,6 +77,9 @@ class TestEventHookBasic:
         assert results == [
             "high", "medium", "low"], f"执行顺序应该是 high -> medium -> low, 实际: {results}"
 
+    @allure.story("移除处理器")
+    @allure.title("测试移除事件处理器")
+    @allure.severity(allure.severity_level.CRITICAL)
     @pytest.mark.asyncio
     async def test_remove_handler(self):
         """测试移除事件处理器"""
@@ -85,6 +96,9 @@ class TestEventHookBasic:
 
         assert not called, "处理器应该被移除"
 
+    @allure.story("去重机制")
+    @allure.title("测试重复处理器注册的去重机制")
+    @allure.severity(allure.severity_level.NORMAL)
     @pytest.mark.asyncio
     async def test_duplicate_handler_prevention(self):
         """测试重复处理器注册的去重机制"""
@@ -103,6 +117,9 @@ class TestEventHookBasic:
 
         assert call_count == 1, f"处理器应该只被调用一次，实际调用了 {call_count} 次"
 
+    @allure.story("错误处理")
+    @allure.title("测试传入非可调用对象时抛出 TypeError")
+    @allure.severity(allure.severity_level.NORMAL)
     @pytest.mark.asyncio
     async def test_non_callable_handler_error(self):
         """测试传入非可调用对象时抛出 TypeError"""
@@ -116,9 +133,13 @@ class TestEventHookBasic:
 # EventHook 装饰器功能测试
 # ============================================================================
 
+@allure.feature("EventHook 装饰器功能")
 class TestEventHookDecorator:
     """测试 EventHook 装饰器功能"""
 
+    @allure.story("装饰器注册")
+    @allure.title("测试使用装饰器注册处理器")
+    @allure.severity(allure.severity_level.CRITICAL)
     @pytest.mark.asyncio
     async def test_handler_decorator(self):
         """测试使用装饰器注册处理器"""
@@ -136,6 +157,9 @@ class TestEventHookDecorator:
 
         assert called, "通过装饰器注册的处理器应该被调用"
 
+    @allure.story("优先级")
+    @allure.title("测试装饰器的优先级")
+    @allure.severity(allure.severity_level.NORMAL)
     @pytest.mark.asyncio
     async def test_handler_decorator_with_priority(self):
         """测试装饰器的优先级"""
@@ -156,6 +180,9 @@ class TestEventHookDecorator:
         assert results == [
             "high", "low"], f"执行顺序应该是 high -> low, 实际: {results}"
 
+    @allure.story("混合注册")
+    @allure.title("测试装饰器和手动注册混合使用")
+    @allure.severity(allure.severity_level.NORMAL)
     @pytest.mark.asyncio
     async def test_decorator_and_manual_registration(self):
         """测试装饰器和手动注册混合使用"""
@@ -183,9 +210,13 @@ class TestEventHookDecorator:
 # EventHook 同步/异步处理器测试
 # ============================================================================
 
+@allure.feature("事件处理器类型")
 class TestEventHookHandlerTypes:
     """测试同步和异步事件处理器"""
 
+    @allure.story("异步处理器")
+    @allure.title("测试异步处理器")
+    @allure.severity(allure.severity_level.CRITICAL)
     @pytest.mark.asyncio
     async def test_async_handler(self):
         """测试异步处理器"""
@@ -201,6 +232,9 @@ class TestEventHookHandlerTypes:
 
         assert called, "异步处理器应该被调用"
 
+    @allure.story("同步处理器")
+    @allure.title("测试同步处理器")
+    @allure.severity(allure.severity_level.NORMAL)
     @pytest.mark.asyncio
     async def test_sync_handler(self):
         """测试同步处理器"""
@@ -216,6 +250,9 @@ class TestEventHookHandlerTypes:
 
         assert called, "同步处理器应该被调用"
 
+    @allure.story("混合类型")
+    @allure.title("测试混合同步和异步处理器")
+    @allure.severity(allure.severity_level.NORMAL)
     @pytest.mark.asyncio
     async def test_mixed_handlers(self):
         """测试混合同步和异步处理器"""
@@ -234,6 +271,9 @@ class TestEventHookHandlerTypes:
 
         assert "async" in results and "sync" in results, "同步和异步处理器都应该被调用"
 
+    @allure.story("协程返回")
+    @allure.title("测试返回协程对象的同步函数")
+    @allure.severity(allure.severity_level.NORMAL)
     @pytest.mark.asyncio
     async def test_handler_returning_coroutine(self):
         """测试返回协程对象的同步函数"""
@@ -257,9 +297,13 @@ class TestEventHookHandlerTypes:
 # EventHook 事件参数测试
 # ============================================================================
 
+@allure.feature("事件参数")
 class TestEventHookParameters:
     """测试事件处理器参数传递"""
 
+    @allure.story("参数传递")
+    @allure.title("测试处理器接收参数")
+    @allure.severity(allure.severity_level.CRITICAL)
     @pytest.mark.asyncio
     async def test_handler_parameters(self):
         """测试处理器接收参数"""
@@ -275,6 +319,9 @@ class TestEventHookParameters:
 
         assert received_params == test_params, f"处理器应该接收正确的参数, 期望: {test_params}, 实际: {received_params}"
 
+    @allure.story("多处理器")
+    @allure.title("测试多个处理器共享事件参数")
+    @allure.severity(allure.severity_level.NORMAL)
     @pytest.mark.asyncio
     async def test_multiple_handlers_with_parameters(self):
         """测试多个处理器共享事件参数"""
@@ -299,9 +346,13 @@ class TestEventHookParameters:
 # EventHook 异常处理测试
 # ============================================================================
 
+@allure.feature("异常处理")
 class TestEventHookExceptions:
     """测试异常处理机制"""
 
+    @allure.story("异常隔离")
+    @allure.title("测试处理器异常不影响其他处理器")
+    @allure.severity(allure.severity_level.CRITICAL)
     @pytest.mark.asyncio
     async def test_handler_exception_handling(self):
         """测试处理器异常不影响其他处理器"""
@@ -324,6 +375,9 @@ class TestEventHookExceptions:
         assert "error_handler" in results, "抛异常的处理器应该被调用"
         assert "normal_handler" in results, "正常的处理器应该继续执行"
 
+    @allure.story("超时处理")
+    @allure.title("测试处理器超时处理")
+    @allure.severity(allure.severity_level.NORMAL)
     @pytest.mark.asyncio
     async def test_handler_timeout(self):
         """测试处理器超时处理"""
@@ -348,9 +402,13 @@ class TestEventHookExceptions:
 # EventHook 批量触发测试
 # ============================================================================
 
+@allure.feature("批量触发")
 class TestEventHookBatchFire:
     """测试批量触发事件"""
 
+    @allure.story("批量触发")
+    @allure.title("测试批量触发事件")
+    @allure.severity(allure.severity_level.CRITICAL)
     @pytest.mark.asyncio
     async def test_fire_batch(self):
         """测试批量触发事件"""
@@ -368,6 +426,9 @@ class TestEventHookBatchFire:
 
         assert call_count == 5, f"应该触发 5 次，实际触发 {call_count} 次"
 
+    @allure.story("参数传递")
+    @allure.title("测试批量触发时参数正确传递")
+    @allure.severity(allure.severity_level.NORMAL)
     @pytest.mark.asyncio
     async def test_fire_batch_with_parameters(self):
         """测试批量触发时参数正确传递"""
@@ -385,6 +446,9 @@ class TestEventHookBatchFire:
         assert received_values == [
             0, 1, 2], f"参数应该按顺序传递, 期望: [0, 1, 2], 实际: {received_values}"
 
+    @allure.story("数量限制")
+    @allure.title("测试批量触发任务数量限制")
+    @allure.severity(allure.severity_level.NORMAL)
     @pytest.mark.asyncio
     async def test_fire_batch_limit(self):
         """测试批量触发任务数量限制"""
@@ -408,9 +472,13 @@ class TestEventHookBatchFire:
 # Events 类测试
 # ============================================================================
 
+@allure.feature("Events 类")
 class TestEventsClass:
     """测试 Events 类功能"""
 
+    @allure.story("注册事件")
+    @allure.title("测试注册新事件")
+    @allure.severity(allure.severity_level.CRITICAL)
     def test_register_event(self):
         """测试注册新事件"""
         events = Events()
@@ -419,14 +487,21 @@ class TestEventsClass:
         assert isinstance(event_hook, EventHook), "应该返回 EventHook 实例"
         assert event_hook in events._events.values(), "事件应该被注册"
 
+    @allure.story("自动注册")
+    @allure.title("测试通过 __getattr__ 自动注册事件")
+    @allure.severity(allure.severity_level.NORMAL)
     def test_getattr_auto_register(self):
-        """测试通过 __getattr__ 自动注册事件"""
+        """测试通过 __getattr__ 访问未注册事件时自动注册"""
         events = Events()
         event_hook = events.custom_event
 
-        assert isinstance(event_hook, EventHook), "应该自动注册并返回 EventHook 实例"
-        assert "custom_event" in events._events, "事件应该被自动注册"
+        assert isinstance(event_hook, EventHook), "应该返回 EventHook 实例"
+        assert "custom_event" in events._events, "未注册的事件应该被自动注册到 _events"
+        assert events._events["custom_event"] is event_hook, "自动注册的事件钩子应该是同一个实例"
 
+    @allure.story("目录方法")
+    @allure.title("测试 __dir__ 方法返回事件名称")
+    @allure.severity(allure.severity_level.NORMAL)
     def test_dir_method(self):
         """测试 __dir__ 方法返回事件名称"""
         events = Events()
@@ -438,6 +513,9 @@ class TestEventsClass:
         assert "event1" in dir_result, "event1 应该在 dir 结果中"
         assert "event2" in dir_result, "event2 应该在 dir 结果中"
 
+    @allure.story("注册待处理")
+    @allure.title("测试注册所有待注册处理器")
+    @allure.severity(allure.severity_level.CRITICAL)
     @pytest.mark.asyncio
     async def test_register_all_pending_handlers(self):
         """测试注册所有待注册处理器"""
@@ -459,9 +537,13 @@ class TestEventsClass:
 # 并发安全测试
 # ============================================================================
 
+@allure.feature("并发安全")
 class TestEventHookConcurrency:
     """测试并发安全"""
 
+    @allure.story("并发添加")
+    @allure.title("测试并发添加处理器")
+    @allure.severity(allure.severity_level.NORMAL)
     @pytest.mark.asyncio
     async def test_concurrent_add_handlers(self):
         """测试并发添加处理器"""
@@ -481,6 +563,9 @@ class TestEventHookConcurrency:
         assert len(
             event_hook._handlers) == 30, f"应该有 30 个处理器, 实际: {len(event_hook._handlers)}"
 
+    @allure.story("并发增删")
+    @allure.title("测试并发添加和移除处理器")
+    @allure.severity(allure.severity_level.NORMAL)
     @pytest.mark.asyncio
     async def test_concurrent_add_and_remove(self):
         """测试在异步上下文中并发添加和移除处理器"""
@@ -503,16 +588,20 @@ class TestEventHookConcurrency:
         await event_hook.fire()
 
         # 由于有并发，可能添加成功也可能失败，只要不崩溃即可
-        assert isinstance(call_count, int)
+        assert call_count >= 0
 
 
 # ============================================================================
 # 集成测试
 # ============================================================================
 
+@allure.feature("集成测试")
 class TestEventsIntegration:
     """测试完整的事件系统集成"""
 
+    @allure.story("生命周期")
+    @allure.title("测试完整的事件生命周期")
+    @allure.severity(allure.severity_level.CRITICAL)
     @pytest.mark.asyncio
     async def test_full_lifecycle(self):
         """测试完整的事件生命周期"""
@@ -543,6 +632,9 @@ class TestEventsIntegration:
         assert lifecycle == [
             "init", "start", "stop"], f"生命周期应该是 init -> start -> stop, 实际: {lifecycle}"
 
+    @allure.story("优先级执行")
+    @allure.title("测试基于优先级的完整执行顺序")
+    @allure.severity(allure.severity_level.CRITICAL)
     @pytest.mark.asyncio
     async def test_priority_based_execution(self):
         """测试基于优先级的完整执行顺序"""

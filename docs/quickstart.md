@@ -112,7 +112,7 @@ aiotest -f my_first_test.py \
 aiotest -f my_first_test.py --prometheus-port 8089
 ```
 
-访问 <http://localhost:8089> 查看实时指标。
+访问 <http://localhost:8089/metrics> 查看实时指标。
 
 ### 使用 Grafana 可视化
 
@@ -234,9 +234,12 @@ async def custom_handler(**kwargs):
 
 ```python
 
-from aiotest import redis_client, DistributedLock
+from aiotest import RedisConnection, DistributedLock
 
 async def test_with_lock(self):
+    # 获取 Redis 客户端
+    redis_client = await RedisConnection().get_client()
+
     async with await DistributedLock.with_lock(redis_client, "my_lock", timeout=10) as lock:
         if lock.locked:
             # 执行需要互斥的操作

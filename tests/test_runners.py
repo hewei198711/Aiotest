@@ -578,9 +578,6 @@ class TestWorkerRunner:
         await runner.initialize()
 
         assert runner.metrics_collection_interval == 5.0
-        assert runner.metrics_batch_size == 100
-        assert runner.metrics_flush_interval == 1.0
-        assert runner.metrics_buffer_size == 10000
 
         # 清理资源
         await runner.quit()

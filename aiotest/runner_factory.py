@@ -1,6 +1,7 @@
 # encoding: utf-8
 
 import asyncio
+import socket
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Type
 
 import psutil
@@ -52,41 +53,13 @@ def validate_load_params(user_count: int, rate: float) -> None:
             "高生成率（>100 用户/秒）可能导致性能问题")
 
 
-def validate_params(func):
-    """
-    参数验证装饰器，验证用户数量和速率参数
-
-    参数：
-        func: 被装饰的函数
-
-    返回：
-        包装后的函数
-    """
-
-    async def wrapper(self, user_count: int, rate: float, *args, **kwargs):
-        validate_load_params(user_count, rate)
-        return await func(self, user_count, rate, *args, **kwargs)
-    return wrapper
-
-
 async def register_event_handlers(runner) -> None:
-    """
-    根据运行器节点类型注册相应的事件处理器。
-
-    重复注册由事件系统自身去重（add_handler 按对象身份比较），
-    无需在此维护独立的注册集合。
-    """
-    # 注册通用事件处理器（仅非Worker节点）
-    if not hasattr(runner, 'node') or runner.node != NODE_TYPE_WORKER:
+    """根据运行器节点类型注册相应的事件处理器（重复注册由事件系统自身去重）。"""
+    if runner.node != NODE_TYPE_WORKER:
         await startup_completed.add_handler(on_startup_completed)
-
-    # 仅Master节点需要注册worker相关事件处理器，用于收集Worker上报的指标
-    if hasattr(runner, 'node') and runner.node == NODE_TYPE_MASTER:
+    if runner.node == NODE_TYPE_MASTER:
         await worker_request_metrics.add_handler(on_worker_request_metrics)
-
-    logger.debug(
-        "已为 %s 节点注册事件处理器",
-        getattr(runner, 'node', 'unknown'))
+    logger.debug("已为 %s 节点注册事件处理器", runner.node)
 
 
 class RunnerFactory:
@@ -196,9 +169,7 @@ class BaseRunner:
         return self._load_shape_manager
 
     async def initialize(self):
-        """初始化运行器（由子类重写）"""
-        import socket
-
+        """初始化运行器（子类覆写时需调用 super()）"""
         # 获取机器标识符（使用主机名）
         self.machine_id = socket.gethostname()
 
@@ -214,18 +185,15 @@ class BaseRunner:
         from aiotest.runners import init_metrics_collector
 
         self.metrics_collection_interval = self.config.metrics_collection_interval
-        self.metrics_batch_size = self.config.metrics_batch_size
-        self.metrics_flush_interval = self.config.metrics_flush_interval
-        self.metrics_buffer_size = self.config.metrics_buffer_size
 
         self.metrics_collector = await init_metrics_collector(
             self.node,
             redis_client,
             node_id,
             coordinator,
-            batch_size=self.metrics_batch_size,
-            flush_interval=self.metrics_flush_interval,
-            buffer_size=self.metrics_buffer_size
+            batch_size=self.config.metrics_batch_size,
+            flush_interval=self.config.metrics_flush_interval,
+            buffer_size=self.config.metrics_buffer_size
         )
 
     async def start(self) -> None:
@@ -262,10 +230,8 @@ class BaseRunner:
             # 取消所有后台任务
             await self.task_manager.cancel_all_tasks()
 
-            # 停止指标收集器并关闭 Prometheus 服务：Local/Worker 的 CLI 退出
-            # 路径走此 quit()（而非各自 stop()），此前遗漏导致事件处理器/HTTP
-            # 服务/flush 任务泄漏。用 getattr 防御：BaseRunner 无这些属性，
-            # Worker 无 prometheus_runner，均应跳过
+            # 停止指标收集器并清理 Prometheus 服务
+            # （部分子类无这些属性，用 getattr 跳过）
             metrics_collector = getattr(self, 'metrics_collector', None)
             if metrics_collector:
                 await metrics_collector.stop()
@@ -293,7 +259,7 @@ class BaseRunner:
 
         await self.state_manager.transition_state(RunnerState.PAUSED)
         # 暂停负载形状的计时
-        if self.load_shape and hasattr(self.load_shape, 'pause'):
+        if self.load_shape:
             self.load_shape.pause()
         # 暂停用户活动
         await self.user_manager.pause_all_users()
@@ -308,15 +274,16 @@ class BaseRunner:
 
         await self.state_manager.transition_state(RunnerState.RUNNING)
         # 恢复负载形状的计时
-        if self.load_shape and hasattr(self.load_shape, 'resume'):
+        if self.load_shape:
             self.load_shape.resume()
         # 恢复用户活动
         await self.user_manager.resume_all_users()
         logger.info("测试已恢复")
 
-    @validate_params
     async def apply_load(self, user_count: int, rate: float) -> None:
         """应用负载配置：直接管理用户并更新状态"""
+        validate_load_params(user_count, rate)
+
         # 初始状态处理
         if self.state_manager.can_start():
             await test_start.fire(runner=self)
@@ -382,32 +349,20 @@ class BaseRunner:
 # ============================================================================
 
 async def on_startup_completed(node_type: str, **kwargs: Any) -> None:
-    """启动完成事件处理"""
-    runner = kwargs.get("runner")
-    # 根据节点类型处理启动完成事件
-    if node_type == NODE_TYPE_MASTER:
-        # Master在所有Worker完成后才触发此事件，转换状态并记录汇总信息
-        if runner and hasattr(runner, 'state_manager'):
-            await runner.state_manager.transition_state(RunnerState.RUNNING)
+    """启动完成事件处理：节点进入 RUNNING 并记录启动汇总"""
+    runner = kwargs["runner"]
+    await runner.state_manager.transition_state(RunnerState.RUNNING)
 
-        # 从启动完成跟踪器获取总用户数
-        if runner and hasattr(runner, '_startup_completion_tracker'):
-            tracker = runner._startup_completion_tracker
-            total_users = tracker.get("startup_data", {}).get("user_count", 0)
-            completed_workers = len(tracker.get("completed_workers", set()))
-            expected_workers = tracker.get("expected_workers", 0)
-            logger.info(
-                "Master 启动完成: %d 个用户，共 %d/%d 个 Worker",
-                total_users, completed_workers, expected_workers)
+    if node_type == NODE_TYPE_MASTER:
+        tracker = runner._startup_completion_tracker
+        logger.info(
+            "Master 启动完成: %d 个用户，共 %d/%d 个 Worker",
+            tracker.get("startup_data", {}).get("user_count", 0),
+            len(tracker.get("completed_workers", set())),
+            tracker.get("expected_workers", 0))
     elif node_type == NODE_TYPE_LOCAL:
-        # LocalRunner
-        if runner and hasattr(runner, 'state_manager'):
-            await runner.state_manager.transition_state(RunnerState.RUNNING)
-        if runner and hasattr(runner, 'active_user_count'):
-            logger.info(
-                "启动完成事件: 已启动 %d 个用户",
-                runner.active_user_count)
-    # Worker不在此处理startup_completed事件，避免死锁
+        logger.info("启动完成事件: 已启动 %d 个用户", runner.active_user_count)
+    # Worker 不注册本处理器，不会走到这里
 
 
 async def on_worker_request_metrics(node_type: str, **kwargs: Any) -> None:
@@ -416,22 +371,17 @@ async def on_worker_request_metrics(node_type: str, **kwargs: Any) -> None:
     if node_type != NODE_TYPE_MASTER:
         return
 
-    runner = kwargs.get("runner")
     data = kwargs.get("data")
-    if runner is None or not data:
+    if not data:
         return
 
-    collector = getattr(runner, 'metrics_collector', None)
-
-    if collector:
-        # 从字典创建 RequestMetrics 对象
-        metrics = RequestMetrics(
-            request_id=data.get("request_id", ""),
-            method=data.get("method", "unknown"),
-            endpoint=data.get("endpoint", "unknown"),
-            status_code=data.get("status_code", 0),
-            duration=data.get("duration", 0),
-            response_size=data.get("response_size", 0),
-            error=data.get("error", None)
-        )
-        await collector.process_request_metrics(metrics=metrics)
+    metrics = RequestMetrics(
+        request_id=data.get("request_id", ""),
+        method=data.get("method", "unknown"),
+        endpoint=data.get("endpoint", "unknown"),
+        status_code=data.get("status_code", 0),
+        duration=data.get("duration", 0),
+        response_size=data.get("response_size", 0),
+        error=data.get("error", None)
+    )
+    await kwargs["runner"].metrics_collector.process_request_metrics(metrics=metrics)

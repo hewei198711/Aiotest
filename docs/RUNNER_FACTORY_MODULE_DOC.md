@@ -67,23 +67,6 @@ ______________________________________________________________________
 - 验证速率是否在有效范围内
 - 对过高的速率发出警告
 
-#### `validate_params` 装饰器
-
-**作用**：参数验证装饰器，自动验证用户数量和速率参数
-
-**参数**：
-
-- `func`：被装饰的函数
-
-**返回值**：
-
-- 包装后的函数
-
-**功能**：
-
-- 在函数执行前自动调用 `validate_load_params` 进行参数验证
-- 简化参数验证逻辑，避免重复代码
-
 ## 事件处理器注册函数
 
 ### `register_event_handlers` 函数
@@ -477,16 +460,15 @@ async def create_worker_runner():
 await create_worker_runner()
 ```
 
-### 使用参数验证装饰器
+### 使用参数验证
 
 ```python
-from aiotest.runner_factory import validate_params, InvalidUserCountError, InvalidRateError
+from aiotest.runner_factory import validate_load_params, InvalidUserCountError, InvalidRateError
 
-@validate_params
 async def apply_load_with_validation(user_count: int, rate: float):
-    """使用参数验证装饰器的示例"""
+    """使用参数验证的示例"""
+    validate_load_params(user_count, rate)
     print(f"Applying load: {user_count} users at {rate} users/s")
-    # 参数会自动验证，无需手动调用 validate_load_params
 
 async def validation_example():
     """参数验证示例"""
@@ -538,6 +520,6 @@ await validation_example()
 
 `runner_factory.py` 模块是 AioTest 负载测试项目的核心组件，提供了完善的运行器创建和管理机制。通过 `RunnerFactory` 类，它能够根据不同的运行器类型创建相应的运行器实例，并通过 `BaseRunner` 类提供组合式架构的核心组件。
 
-该模块的设计考虑了灵活性和可扩展性，使用工厂模式支持多种运行器类型，使用延迟导入和延迟初始化避免循环依赖，使用装饰器简化参数验证，使用事件处理器注册中心统一管理事件处理器。通过合理的设计模式和技术手段，它为负载测试提供了灵活而可靠的运行器管理能力。
+该模块的设计考虑了灵活性和可扩展性，使用工厂模式支持多种运行器类型，使用延迟导入和延迟初始化避免循环依赖，使用集中式校验函数验证负载参数，使用事件处理器注册中心统一管理事件处理器。通过合适的设计模式和技术手段，它为负载测试提供了灵活而可靠的运行器管理能力。
 
 无论是本地测试、主节点管理还是工作节点执行，`runner_factory.py` 模块都能提供可靠的支持，帮助用户构建更加灵活和高效的负载测试系统。

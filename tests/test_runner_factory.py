@@ -1,7 +1,6 @@
 # encoding: utf-8
 
 import asyncio
-import logging
 
 import allure
 import pytest
@@ -16,7 +15,7 @@ from aiotest.runner_factory import (NODE_TYPE_LOCAL, NODE_TYPE_MASTER,
                                     on_startup_completed,
                                     on_worker_request_metrics,
                                     register_event_handlers,
-                                    validate_load_params, validate_params)
+                                    validate_load_params)
 from aiotest.shape import LoadUserShape
 from aiotest.state_manager import RunnerState
 from aiotest.users import User
@@ -80,29 +79,6 @@ class TestValidateLoadParams:
         """测试无效的速率应该抛出 InvalidRateError"""
         with pytest.raises(InvalidRateError):
             validate_load_params(10, rate)
-
-
-@allure.feature("参数验证装饰器")
-class TestValidateParams:
-    """参数验证装饰器的测试用例"""
-
-    @allure.story("装饰器功能")
-    @allure.title("测试装饰器验证参数")
-    @allure.severity(allure.severity_level.NORMAL)
-    async def test_validate_params_decorator(self):
-        """测试装饰器正确验证参数"""
-        class TestClass:
-            @validate_params
-            async def test_method(self, user_count, rate, extra_arg):
-                return (user_count, rate, extra_arg)
-
-        obj = TestClass()
-
-        result = await obj.test_method(10, 5.0, "extra")
-        assert result == (10, 5.0, "extra")
-
-        with pytest.raises(InvalidUserCountError):
-            await obj.test_method(0, 5.0, "extra")
 
 
 @allure.feature("事件处理器注册")

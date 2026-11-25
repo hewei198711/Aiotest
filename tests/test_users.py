@@ -1263,8 +1263,84 @@ class TestHttpUser:
         assert user._client_initialized
 
         await user.on_stop()
-        # 注意：使用预配置客户端时，on_stop 会关闭客户端
+        # 注意：外部预配置客户端由外部管理生命周期，on_stop 只解除引用
         assert not user._client_initialized
+
+    @allure.story("客户端配置")
+    @allure.title("测试预配置客户端stop后重启不崩溃")
+    @allure.severity(allure.severity_level.CRITICAL)
+    async def test_http_user_preconfigured_client_restart_after_stop(self):
+        """预配置 client 分支同样保存 _client_config，stop 后重启可重建客户端（B-2）"""
+
+        class FakeHttpClient:
+            def __init__(self):
+                self.closed = False
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, exc_type, exc_val, exc_tb):
+                self.closed = True
+
+        fake = FakeHttpClient()
+        user = HttpUser(host="http://localhost:8080", client=fake)
+        assert user._client_initialized
+        assert user.client is fake
+
+        # 首次启动：客户端已初始化，直接使用
+        await user.on_start()
+        assert user._client_initialized
+
+        # 停止：解除对外部客户端的引用，但不关闭
+        await user.on_stop()
+        assert not fake.closed
+        assert not user._client_initialized
+
+        # 重启：按保存的配置重建客户端，不再抛 AttributeError（B-2）
+        await user.on_start()
+        assert user._client_initialized
+        assert user.client is not fake
+
+        # 清理：重建的客户端由框架创建，stop 时正常关闭
+        await user.on_stop()
+        assert not user._client_initialized
+
+    @allure.story("客户端配置")
+    @allure.title("测试共享预配置客户端不因单个用户停止而关闭")
+    @allure.severity(allure.severity_level.CRITICAL)
+    async def test_http_user_shared_preconfigured_client_not_closed_on_stop(
+            self):
+        """多个 HttpUser 共享同一预配置 client 时，任一用户停止不关闭共享会话（B-4）"""
+
+        class FakeHttpClient:
+            def __init__(self):
+                self.closed = False
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, exc_type, exc_val, exc_tb):
+                self.closed = True
+
+        fake = FakeHttpClient()
+        user1 = HttpUser(host="http://localhost:8080", client=fake)
+        user2 = HttpUser(host="http://localhost:8080", client=fake)
+        assert user1.client is fake
+        assert user2.client is fake
+
+        # 任一用户停止：只解除自身引用，不关闭共享客户端
+        await user1.on_stop()
+        assert not fake.closed
+        assert not user1._client_initialized
+
+        # 另一个用户仍持有可用客户端
+        assert user2._client_initialized
+        assert user2.client is fake
+
+        # 清理：所有用户停止后共享客户端仍由外部管理
+        await user2.on_stop()
+        assert not fake.closed
+        assert not user2._client_initialized
 
     @allure.story("初始化")
     @allure.title("测试当 host 为 None 但提供了预配置客户端时的行为")
@@ -1283,7 +1359,7 @@ class TestHttpUser:
         assert user._client_initialized
 
         await user.on_stop()
-        # 注意：使用预配置客户端时，on_stop 会关闭客户端
+        # 注意：外部预配置客户端由外部管理生命周期，on_stop 只解除引用
         assert not user._client_initialized
 
     @allure.story("错误处理")

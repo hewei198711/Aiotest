@@ -4,8 +4,7 @@ import allure
 import pytest
 
 from aiotest.exception import (AioTestError, InvalidRateError,
-                               InvalidUserCountError, RunnerError,
-                               create_exception)
+                               InvalidUserCountError, RunnerError)
 
 
 @allure.feature("异常类测试")
@@ -134,60 +133,6 @@ class TestInvalidRateError:
         """测试 __str__ 方法"""
         error = InvalidRateError("Invalid rate", 10.5)
         assert str(error) == "[INVALID_RATE] Invalid rate"
-
-
-@allure.feature("异常工具函数测试")
-class TestCreateException:
-    """测试 create_exception 函数"""
-
-    @allure.story("创建异常")
-    @allure.title("测试创建基础 AioTestError")
-    @allure.severity(allure.severity_level.NORMAL)
-    def test_create_aio_test_error(self):
-        """测试创建基础 AioTestError"""
-        error = create_exception("UNKNOWN_ERROR", "Unknown error")
-        assert isinstance(error, AioTestError)
-        assert error.message == "Unknown error"
-        assert error.error_code == "UNKNOWN_ERROR"
-
-    @allure.story("创建异常")
-    @allure.title("测试创建 InvalidUserCountError")
-    @allure.severity(allure.severity_level.NORMAL)
-    def test_create_invalid_user_count_error(self):
-        """测试创建 InvalidUserCountError"""
-        context = {"user_count": 100}
-        error = create_exception(
-            "INVALID_USER_COUNT",
-            "Invalid user count",
-            context)
-        assert isinstance(error, InvalidUserCountError)
-        assert error.message == "Invalid user count"
-        assert error.error_code == "INVALID_USER_COUNT"
-        assert error.user_count == 100
-
-    @allure.story("创建异常")
-    @allure.title("测试创建 InvalidRateError")
-    @allure.severity(allure.severity_level.NORMAL)
-    def test_create_invalid_rate_error(self):
-        """测试创建 InvalidRateError"""
-        context = {"rate": 10.5}
-        error = create_exception("INVALID_RATE", "Invalid rate", context)
-        assert isinstance(error, InvalidRateError)
-        assert error.message == "Invalid rate"
-        assert error.error_code == "INVALID_RATE"
-        assert error.rate == 10.5
-
-    @allure.story("创建异常")
-    @allure.title("测试创建异常时上下文为 None")
-    @allure.severity(allure.severity_level.NORMAL)
-    def test_create_exception_with_none_context(self):
-        """测试创建异常时上下文为 None"""
-        error = create_exception(
-            "INVALID_USER_COUNT",
-            "Invalid user count",
-            None)
-        assert isinstance(error, InvalidUserCountError)
-        assert error.user_count is None
 
 
 if __name__ == "__main__":

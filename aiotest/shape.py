@@ -34,6 +34,8 @@ class LoadUserShape(metaclass=ABCMeta):
 
     def __init__(self):
         self.start_time = default_timer()
+        # 注意区分：paused_time 是最近一次暂停的开始时刻（时间点），
+        # pause_time 是历次暂停时长的累计值（时间段）。
         self.paused_time = 0.0
         self.is_paused = False
         self.pause_time = 0.0
@@ -112,4 +114,4 @@ class LoadUserShape(metaclass=ABCMeta):
             - 这是一个抽象方法，子类必须实现此方法来定义具体的负载变化策略。
             - 通常用于动态调整负载测试的用户数量和速率。
         """
-        return None
+        raise NotImplementedError

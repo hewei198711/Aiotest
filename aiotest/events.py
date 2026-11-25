@@ -1,6 +1,7 @@
 # encoding: utf-8
 
 import asyncio
+import inspect
 import sys
 import traceback
 from typing import Any, Callable, Dict, List, Tuple
@@ -63,6 +64,25 @@ class EventHook:
             return func
         return decorator
 
+    @staticmethod
+    def _handlers_equal(
+            handler1: Callable[..., Any],
+            handler2: Callable[..., Any]) -> bool:
+        """
+        比较两个处理器是否相同。
+
+        绑定方法每次属性访问都会产生新对象，仅用 is 无法去重；
+        需按 __self__ + __func__ 判断，与绑定方法的 == 值比较语义对齐。
+        """
+        if handler1 is handler2:
+            return True
+        # 绑定方法（含类方法）才有 __self__；普通函数没有该属性
+        self1 = getattr(handler1, "__self__", None)
+        self2 = getattr(handler2, "__self__", None)
+        if self1 is not None and self2 is not None:
+            return self1 is self2 and handler1.__func__ is handler2.__func__
+        return False
+
     async def add_handler(
         self,
         handler: Callable[..., Any],
@@ -79,11 +99,11 @@ class EventHook:
             raise TypeError("处理器必须是可调用的")
         handler_name = getattr(handler, "__name__", repr(handler))
         async with self._lock:
-            # 使用对象标识进行去重，避免同名方法被误判
+            # 去重：模块级函数按对象标识，绑定方法按 __self__+__func__ 比较
             for _, existing_handler in self._handlers:
-                if existing_handler is handler:
+                if self._handlers_equal(existing_handler, handler):
                     logger.warning("处理器 %s 已存在", handler_name)
-                    return  # 如果处理器对象已存在，直接返回不添加
+                    return  # 如果处理器已存在，直接返回不添加
             # 使用优先级作为排序键，避免直接比较函数对象
             self._handlers.append((-priority, handler))
             self._handlers.sort(key=lambda x: x[0])
@@ -111,7 +131,11 @@ class EventHook:
             handler (Callable[..., Any]): 要移除的事件处理器函数。
         """
         async with self._lock:
-            self._handlers = [h for h in self._handlers if h[1] != handler]
+            # 与 add_handler 使用同一比较逻辑，保证添加/移除语义一致
+            self._handlers = [
+                h for h in self._handlers
+                if not self._handlers_equal(h[1], handler)
+            ]
 
     async def fire(self, **kwargs: Any) -> None:
         """
@@ -158,8 +182,8 @@ class EventHook:
             **kwargs (Any): 传递给处理器的参数。
         """
         try:
-            # 检查处理器类型
-            if asyncio.iscoroutinefunction(handler):
+            # 检查处理器类型（asyncio.iscoroutinefunction 自 Python 3.14 弃用，改用 inspect）
+            if inspect.iscoroutinefunction(handler):
                 # 协程函数，直接调用并等待
                 await asyncio.wait_for(handler(**kwargs), timeout=self._timeout)
             else:

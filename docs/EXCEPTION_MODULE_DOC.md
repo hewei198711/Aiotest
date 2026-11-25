@@ -13,21 +13,16 @@
   - [具体异常类](#%E5%85%B7%E4%BD%93%E5%BC%82%E5%B8%B8%E7%B1%BB)
     - [`InvalidUserCountError`](#invalidusercounterror)
     - [`InvalidRateError`](#invalidrateerror)
-  - [异常工厂函数](#%E5%BC%82%E5%B8%B8%E5%B7%A5%E5%8E%82%E5%87%BD%E6%95%B0)
-    - [`create_exception()` 函数](#create_exception-%E5%87%BD%E6%95%B0)
   - [调用逻辑流程](#%E8%B0%83%E7%94%A8%E9%80%BB%E8%BE%91%E6%B5%81%E7%A8%8B)
     - [异常抛出流程](#%E5%BC%82%E5%B8%B8%E6%8A%9B%E5%87%BA%E6%B5%81%E7%A8%8B)
     - [异常捕获和处理流程](#%E5%BC%82%E5%B8%B8%E6%8D%95%E8%8E%B7%E5%92%8C%E5%A4%84%E7%90%86%E6%B5%81%E7%A8%8B)
-    - [使用异常工厂函数流程](#%E4%BD%BF%E7%94%A8%E5%BC%82%E5%B8%B8%E5%B7%A5%E5%8E%82%E5%87%BD%E6%95%B0%E6%B5%81%E7%A8%8B)
   - [流程图](#%E6%B5%81%E7%A8%8B%E5%9B%BE)
     - [异常层次结构](#%E5%BC%82%E5%B8%B8%E5%B1%82%E6%AC%A1%E7%BB%93%E6%9E%84)
     - [异常抛出和捕获流程](#%E5%BC%82%E5%B8%B8%E6%8A%9B%E5%87%BA%E5%92%8C%E6%8D%95%E8%8E%B7%E6%B5%81%E7%A8%8B)
-    - [异常工厂函数流程](#%E5%BC%82%E5%B8%B8%E5%B7%A5%E5%8E%82%E5%87%BD%E6%95%B0%E6%B5%81%E7%A8%8B)
   - [配置参数](#%E9%85%8D%E7%BD%AE%E5%8F%82%E6%95%B0)
   - [使用示例](#%E4%BD%BF%E7%94%A8%E7%A4%BA%E4%BE%8B)
     - [基本异常使用](#%E5%9F%BA%E6%9C%AC%E5%BC%82%E5%B8%B8%E4%BD%BF%E7%94%A8)
     - [使用具体异常类](#%E4%BD%BF%E7%94%A8%E5%85%B7%E4%BD%93%E5%BC%82%E5%B8%B8%E7%B1%BB)
-    - [使用异常工厂函数](#%E4%BD%BF%E7%94%A8%E5%BC%82%E5%B8%B8%E5%B7%A5%E5%8E%82%E5%87%BD%E6%95%B0)
     - [异常层次结构使用](#%E5%BC%82%E5%B8%B8%E5%B1%82%E6%AC%A1%E7%BB%93%E6%9E%84%E4%BD%BF%E7%94%A8)
   - [性能优化建议](#%E6%80%A7%E8%83%BD%E4%BC%98%E5%8C%96%E5%BB%BA%E8%AE%AE)
   - [故障排查](#%E6%95%85%E9%9A%9C%E6%8E%92%E6%9F%A5)
@@ -45,7 +40,6 @@ ______________________________________________________________________
 
 - ✅ **层次化异常体系** - 便于错误分类和处理
 - ✅ **错误信息传递** - 支持错误代码、错误信息和上下文信息
-- ✅ **异常工厂函数** - 根据错误码创建对应的异常实例
 - ✅ **错误信息格式化** - 便于日志记录和调试
 - ✅ **类型安全** - 使用类型注解提高代码可读性
 
@@ -156,28 +150,6 @@ def __init__(self, message: str, rate: float = None)
 | ----- | ---- | ---- |
 | `rate` | `float` | 无效的速率值 |
 
-## 异常工厂函数
-
-### `create_exception()` 函数
-
-**作用**：根据错误码创建对应的异常实例
-
-**参数**：
-
-| 参数名 | 类型 | 默认值 | 说明 |
-| ----- | ---- | ----- | ---- |
-| `error_code` | `str` | 无 | 错误代码 |
-| `message` | `str` | 无 | 错误信息 |
-| `context` | `dict` | `None` | 错误上下文信息 |
-
-**返回值**：
-
-- `AioTestError`：对应的异常实例
-
-**异常**：
-
-- `ValueError`：如果错误码无效
-
 ## 调用逻辑流程
 
 ### 异常抛出流程
@@ -195,15 +167,6 @@ def __init__(self, message: str, rate: float = None)
 1. **获取异常信息** → 从异常对象中获取错误信息、错误代码和上下文
 1. **处理异常** → 执行相应的错误处理逻辑
 1. **记录日志** → 记录异常信息，便于调试和监控
-
-### 使用异常工厂函数流程
-
-1. **准备异常信息** → 确定错误代码、错误信息和上下文
-1. **调用工厂函数** → 调用 `create_exception` 函数
-1. **工厂函数处理** → 根据错误码选择对应的异常类
-1. **创建异常实例** → 为特定异常类传递相应的参数
-1. **返回异常实例** → 返回创建的异常实例
-1. **抛出异常** → 使用返回的异常实例抛出异常
 
 ## 流程图
 
@@ -230,21 +193,6 @@ flowchart TD
     G --> H[获取异常信息]
     H --> I[处理异常]
     I --> J[记录日志]
-```
-
-### 异常工厂函数流程
-
-```mermaid
-flowchart TD
-    A[准备异常信息] --> B[调用create_exception]
-    B --> C[根据error_code选择异常类]
-    C --> D{异常类是否需要特殊参数?}
-    D -->|是| E[从context提取参数]
-    D -->|否| F[使用默认参数]
-    E --> G[创建异常实例]
-    F --> G
-    G --> H[返回异常实例]
-    H --> I[抛出异常]
 ```
 
 ## 配置参数
@@ -315,44 +263,6 @@ except InvalidRateError as e:
     print(f"Rate: {e.rate}")
 ```
 
-### 使用异常工厂函数
-
-```python
-from aiotest.exception import create_exception
-
-# 使用异常工厂函数创建异常
-def process_request(data):
-    if 'user_count' not in data:
-        error = create_exception(
-            "INVALID_USER_COUNT",
-            "Missing user_count parameter",
-            {"request_data": data}
-        )
-        raise error
-
-    user_count = data['user_count']
-    if user_count <= 0:
-        error = create_exception(
-            "INVALID_USER_COUNT",
-            f"Invalid user count: {user_count}",
-            {"user_count": user_count, "request_data": data}
-        )
-        raise error
-
-    return f"Processing request with {user_count} users"
-
-# 测试异常工厂函数
-try:
-    result = process_request({"user_count": 10})
-    print(result)
-except Exception as e:
-    print(f"Error: {e}")
-    if hasattr(e, 'error_code'):
-        print(f"Error code: {e.error_code}")
-    if hasattr(e, 'context'):
-        print(f"Context: {e.context}")
-```
-
 ### 异常层次结构使用
 
 ```python
@@ -401,12 +311,6 @@ except Exception as e:
    - 捕获异常后要适当处理，不要静默忽略
    - 记录异常信息时要包含足够的上下文，便于定位问题
 
-1. **异常工厂函数使用**：
-
-   - 当需要根据错误码动态创建异常时，使用 `create_exception` 函数
-   - 传递足够的上下文信息，便于后续处理
-   - 注意错误码的大小写，确保与 `EXCEPTION_MAP` 中的键匹配
-
 ## 故障排查
 
 ### 常见问题
@@ -415,7 +319,6 @@ except Exception as e:
 | ---- | ------- | ------- |
 | 异常未被捕获 | 异常类型不匹配或捕获范围过窄 | 检查异常类型，确保捕获正确的异常 |
 | 异常信息不完整 | 未提供足够的上下文信息 | 在创建异常时添加详细的上下文信息 |
-| 错误码无效 | 使用了未在 `EXCEPTION_MAP` 中定义的错误码 | 检查错误码是否正确，或使用标准错误码 |
 | 异常层次混乱 | 异常继承关系不清晰 | 保持异常层次结构清晰，避免循环依赖 |
 | 性能问题 | 在性能关键路径上抛出异常 | 避免在循环或高频操作中抛出异常 |
 
@@ -428,8 +331,6 @@ except Exception as e:
 ## 总结
 
 `exception.py` 模块是 AioTest 负载测试项目的核心组件，提供了完善的异常处理机制。通过 `AioTestError` 作为基础异常类，`RunnerError` 作为运行器相关异常的基类，以及 `InvalidUserCountError` 和 `InvalidRateError` 作为具体的异常类型，它构建了一个层次清晰的异常体系。
-
-该模块还提供了 `create_exception` 工厂函数，支持根据错误码动态创建对应的异常实例，为系统提供了统一的异常创建机制。这种设计使得错误处理更加标准化和规范化，便于错误的分类、捕获和处理。
 
 在实际使用中，合理地使用异常可以提高代码的可读性和可维护性，便于定位和解决问题。通过捕获特定类型的异常，可以针对不同的错误情况执行相应的处理逻辑，提高系统的健壮性和可靠性。
 

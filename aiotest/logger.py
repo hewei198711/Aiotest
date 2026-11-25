@@ -4,6 +4,7 @@ import logging
 import os
 import sys
 from logging import Formatter
+from logging.handlers import RotatingFileHandler
 
 
 class ExtraFieldFormatter(Formatter):
@@ -27,27 +28,17 @@ class ExtraFieldFormatter(Formatter):
         super().__init__(default_fmt)
         self.default_fmt = default_fmt
         self.field_fmt_dict = field_fmt_dict
+        # 每个字段预构建独立 Formatter，避免运行时修改私有 _style._fmt
+        self._field_formatters = {
+            field: Formatter(fmt) for field, fmt in field_fmt_dict.items()
+        }
 
     def format(self, record):
-        # 保存原始格式
-        original_fmt = self._style._fmt
-        try:
-            # 检查每个字段是否存在
-            for field, fmt in self.field_fmt_dict.items():
-                if hasattr(record, field):
-                    self._style._fmt = fmt
-                    break
-            else:
-                self._style._fmt = self.default_fmt
-
-            return super().format(record)
-        except Exception:
-            # 格式化异常时回退到默认格式，避免日志系统崩溃
-            self._style._fmt = self.default_fmt
-            return super().format(record)
-        finally:
-            # 恢复原始格式
-            self._style._fmt = original_fmt
+        # 命中 extra 字段则用对应格式，否则使用默认格式
+        for field, field_formatter in self._field_formatters.items():
+            if hasattr(record, field):
+                return field_formatter.format(record)
+        return super().format(record)
 
 
 class Logger:
@@ -105,10 +96,12 @@ class Logger:
             }
         )
 
-        # 文件处理器 - 追加到原有文件
-        file_handler = logging.FileHandler(
+        # 文件处理器 - 追加模式并支持轮转，避免长时间压测日志无限增长
+        file_handler = RotatingFileHandler(
             filename=os.path.join(self.log_dir, f'{self.name}.log'),
             mode='a',  # 追加模式
+            maxBytes=10 * 1024 * 1024,  # 单文件最大10MB，超过后轮转
+            backupCount=5,  # 保留最近5个备份文件
             encoding='utf-8'
         )
         file_handler.setFormatter(formatter)
@@ -151,4 +144,22 @@ class Logger:
         return self.logger
 
 
-logger = Logger().get_logger()
+_logger_instance = None
+
+
+def _get_logger():
+    """惰性获取全局 Logger 实例，避免 import aiotest 时创建 logs 目录"""
+    global _logger_instance
+    if _logger_instance is None:
+        _logger_instance = Logger()
+    return _logger_instance
+
+
+class _LazyLogger:
+    """惰性代理：首次使用全局 logger 时才创建 Logger 实例"""
+
+    def __getattr__(self, name):
+        return getattr(_get_logger(), name)
+
+
+logger = _LazyLogger()

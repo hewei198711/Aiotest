@@ -304,9 +304,6 @@ aiotest -f examples/basic.py
 
 # 指定日志级别
 aiotest -f examples/basic.py --loglevel DEBUG
-
-# 指定日志文件
-aiotest -f examples/basic.py --logfile test.log
 ```
 
 ### 分布式运行

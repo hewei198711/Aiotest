@@ -35,9 +35,8 @@ async def main():
             - 测试文件加载失败
             - 测试运行被中断
     """
-    # 设置 WindowsSelectorEventLoopPolicy 以解决 zmq 兼容性问题
-    if sys.platform == "win32":
-        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+    # 注意：Windows 事件循环策略统一在 __main__.py 的同步入口中设置
+    # （策略必须在事件循环创建前设置，asyncio.run 之后再设无效，故此处不再重复）
 
     # 解析命令行参数
     options = parse_options()
@@ -50,7 +49,7 @@ async def main():
     if options.master or options.worker:
         redis_password = options.redis_password
         if not redis_password:
-            logger.warning("Redis password not set. Use --redis-password or AIOTEST_REDIS_PASSWORD env var")
+            logger.warning("Redis password not set. Use --redis-password")
             redis_password = ""
         redis_connection = RedisConnection()
         redis_client = await redis_connection.get_client(
@@ -80,8 +79,9 @@ async def main():
     for user_class in user_classes:
         if not hasattr(user_class, 'jobs') or not user_class.jobs:
             handle_error_and_exit(
-                f"在 User 类中未找到 jobs: {
-                    user_class.__name__}. 任务函数必须以 'test_' 开头或以 '_test' 结尾 (例如: test_get_request, get_request_test)")
+                f"在 User 类中未找到 jobs: {user_class.__name__}. "
+                "任务函数必须以 'test_' 开头或以 '_test' 结尾 "
+                "(例如: test_get_request, get_request_test)")
 
     # 检查文件描述符限制（非Windows系统）
     if os.name != "nt" and not options.master:
@@ -124,32 +124,26 @@ async def main():
         runner = await RunnerFactory.create("local", user_classes, shape_instance, options)
 
     try:
-        async with asyncio.TaskGroup() as tg:
-            if not options.worker:
-                # 启动测试
-                await runner.start()
-                # 运行测试直到完成
-                await runner.run_until_complete()
-                # 测试完成后,通知Worker节点退出
-                await runner.quit()
-                # 给Worker节点足够的时间来接收和处理quit命令
-                await asyncio.sleep(3.0)
-            else:
-                # Worker 模式持续运行
-                async def worker_run():
-                    while not runner.state_manager.is_in_quit_state():
-                        await asyncio.sleep(1)
-
-                tg.create_task(worker_run())
+        if not options.worker:
+            # 启动测试
+            await runner.start()
+            # 运行测试直到完成
+            await runner.run_until_complete()
+            # 测试完成后,通知Worker节点退出
+            await runner.quit()
+            # 给Worker节点足够的时间来接收和处理quit命令
+            await asyncio.sleep(3.0)
+        else:
+            # Worker 模式持续运行：quit 命令由命令监听器处理并置位 is_quit，
+            # 这里只需轮询等待退出信号
+            while not runner.state_manager.is_in_quit_state():
+                await asyncio.sleep(1)
     except (KeyboardInterrupt, asyncio.CancelledError):
         await runner.quit()
         # 给Worker节点足够的时间来接收和处理quit命令
-        await asyncio.sleep(3.0)
-        if redis_connection:
-            await redis_connection.close()
-        await asyncio.sleep(0.2)
+        await asyncio.sleep(3)
         sys.exit(0)
     finally:
-        # 正常流程结束后关闭 Redis 连接
+        # 关闭 Redis 连接（正常退出与 KeyboardInterrupt 路径统一在此处理）
         if redis_connection:
             await redis_connection.close()

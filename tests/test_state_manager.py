@@ -58,21 +58,6 @@ class TestStateManager:
             await manager.transition_state(RunnerState.STOPPING)
 
     @allure.story("状态转换")
-    @allure.title("测试紧急停止状态转换")
-    @allure.severity(allure.severity_level.NORMAL)
-    async def test_emergency_stop_transition(self):
-        """测试紧急停止状态转换"""
-        manager = StateManager()
-
-        # 启动到运行状态
-        await manager.transition_state(RunnerState.STARTING)
-        await manager.transition_state(RunnerState.RUNNING)
-
-        # RUNNING -> QUITTING (紧急停止)
-        await manager.transition_state(RunnerState.QUITTING)
-        assert manager.get_current_state() == RunnerState.QUITTING
-
-    @allure.story("状态转换")
     @allure.title("测试相同状态转换")
     @allure.severity(allure.severity_level.NORMAL)
     async def test_same_state_transition(self):
@@ -162,20 +147,18 @@ class TestStateManager:
         assert manager.get_current_state() == initial_state
 
     @allure.story("状态转换")
-    @allure.title("测试 MISSING 状态转换")
+    @allure.title("测试 MISSING 状态无出边")
     @allure.severity(allure.severity_level.NORMAL)
     async def test_missing_state_transition(self):
-        """测试 MISSING 状态的转换"""
-        # 注意：这里需要先将状态设置为 MISSING，
-        # 但由于 transition_state 方法的限制，我们需要通过直接修改状态来测试
+        """测试 MISSING 状态无合法出边（仅作节点标记，不参与状态机流转）"""
         manager = StateManager()
 
         # 直接修改状态为 MISSING（仅用于测试）
         manager.state = RunnerState.MISSING
 
-        # MISSING 状态只能转换到 QUITTING
-        await manager.transition_state(RunnerState.QUITTING)
-        assert manager.get_current_state() == RunnerState.QUITTING
+        # MISSING 状态无任何合法转换
+        with pytest.raises(RuntimeError):
+            await manager.transition_state(RunnerState.STOPPING)
 
     @allure.story("状态转换")
     @allure.title("测试 STOPPING 状态转换")
@@ -195,21 +178,6 @@ class TestStateManager:
         # STOPPING -> READY
         await manager.transition_state(RunnerState.READY)
         assert manager.get_current_state() == RunnerState.READY
-
-    @allure.story("状态转换")
-    @allure.title("测试 QUITTING 状态转换")
-    @allure.severity(allure.severity_level.NORMAL)
-    async def test_quitting_state_transition(self):
-        """测试 QUITTING 状态的转换"""
-        manager = StateManager()
-
-        # 转换到 QUITTING
-        await manager.transition_state(RunnerState.QUITTING)
-        assert manager.get_current_state() == RunnerState.QUITTING
-
-        # QUITTING 状态不能转换到其他状态
-        with pytest.raises(RuntimeError):
-            await manager.transition_state(RunnerState.READY)
 
     @allure.story("状态转换")
     @allure.title("测试 PAUSED 状态转换")

@@ -211,7 +211,6 @@ def mock_config():
             self.metrics_flush_interval = 1.0
             self.metrics_buffer_size = 10000
             self.loglevel = "INFO"
-            self.logfile = None
             self.redis_path = "127.0.0.1"
             self.redis_port = 6379
             self.redis_password = "123456"

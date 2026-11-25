@@ -257,7 +257,6 @@ ______________________________________________________________________
 | `PAUSED` | 暂停中 |
 | `MISSING` | 丢失（仅用于工作节点） |
 | `STOPPING` | 停止中 |
-| `QUITTING` | 退出中 |
 
 ### StateManager 类
 
@@ -471,9 +470,9 @@ ______________________________________________________________________
 
 #### 方法
 
-##### `with_lock(redis_client, lock_name, timeout)` -> `AsyncContextManager`
+##### `with_lock(redis_client, lock_name, timeout)` -> `DistributedLock`
 
-获取分布式锁的上下文管理器。
+获取分布式锁的快捷方式，提前获取锁后返回锁实例，配合 `async with await ...` 使用。
 
 **参数**:
 

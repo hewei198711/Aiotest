@@ -71,7 +71,7 @@ ______________________________________________________________________
 | `release()` | 释放分布式锁 | 无 | `bool` | 需要释放锁时 |
 | `__aenter__()` | 进入上下文管理器 | 无 | `self` | 使用 `async with` 时 |
 | `__aexit__(exc_type, exc_val, exc_tb)` | 退出上下文管理器 | 异常相关参数 | `None` | 使用 `async with` 时 |
-| `with_lock(redis, lock_key, timeout, wait_timeout)` | 锁的快捷使用方式 | `redis: Redis`, `lock_key: str`, `timeout: float`, `wait_timeout: float` | `_LockContext` | 需要获取锁时 |
+| `with_lock(redis, lock_key, timeout, wait_timeout)` | 锁的快捷使用方式 | `redis: Redis`, `lock_key: str`, `timeout: float`, `wait_timeout: float` | `DistributedLock` | 需要获取锁时 |
 
 ## 核心类DistributedCoordinator
 
@@ -167,11 +167,7 @@ flowchart TD
 ```mermaid
 flowchart TD
     A[Worker节点] -->|收集指标| B[批量处理]
-    B -->|数据量>MAX_BATCH_SIZE?| C{需要分块?}
-    C -->|是| D[拆分成多个批次]
-    C -->|否| E[单批次传输]
-    D -->|逐块发布| F[Redis发布/订阅]
-    E -->|发布批次| F
+    B -->|发布批次| F[Redis发布/订阅]
     F -->|消息传递| G[Master节点]
     G -->|接收指标| H[处理批量数据]
     H -->|遍历数据| I[处理单个指标]
@@ -204,7 +200,6 @@ flowchart TD
 | ----- | ---- | ----- | ---- | ----- --|
 | `HEARTBEAT_INTERVAL` | `float` | 1.0 | 心跳监控时间间隔（秒） | 调整监控精度和系统开销 |
 | `HEARTBEAT_LIVENESS` | `int` | 3 | 心跳存活检查次数 | 调整容错能力 |
-| `MAX_BATCH_SIZE` | `int` | 1000 | 最大批量传输大小 | 控制单次传输数据量，防止消息过大 |
 
 ## 使用示例
 
@@ -318,13 +313,12 @@ async with await DistributedLock.with_lock(redis_client, "resource_name") as loc
 
 ## 性能优化建议
 
-1. **批量数据传输**：对于高并发场景，使用 `request_metrics` 频道进行批量数据传输，减少网络开销。系统会自动将大数据集拆分成多个小批次（每批最多 `MAX_BATCH_SIZE` 条），避免单条消息过大导致的性能问题。
+1. **批量数据传输**：对于高并发场景，使用 `request_metrics` 频道进行批量数据传输，减少网络开销。
 1. **心跳监控优化**：使用 `SCAN` 命令替代 `KEYS` 命令检查 Worker 心跳，避免阻塞 Redis 服务器。`SCAN` 采用增量迭代方式，每次处理固定数量的 key，适合生产环境使用。
 1. **心跳间隔调整**：根据网络状况和系统负载调整 `HEARTBEAT_INTERVAL`，平衡监控精度和系统开销
 1. **消息处理优化**：在命令处理器中使用异步处理，避免阻塞事件循环
 1. **错误处理**：实现适当的错误处理和重试机制，提高系统可靠性
 1. **连接管理**：使用 `RedisConnection` 类管理连接池，避免频繁创建和关闭连接
-1. **批量大小调优**：根据实际网络环境和 Redis 性能调整 `MAX_BATCH_SIZE`，在高延迟网络中可适当减小该值
 
 ## 故障排查
 

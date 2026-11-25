@@ -1,10 +1,22 @@
 # encoding: utf-8
 
 import asyncio
+import inspect
+from functools import lru_cache
 from typing import Any, Callable, Dict, List, Optional, Type
 
 from aiotest.logger import logger
 from aiotest.users import User
+
+
+@lru_cache(maxsize=None)
+def _accepts_host_parameter(user_class: Type['User']) -> bool:
+    """检查用户类构造函数是否接受 host 参数（类对象可哈希，结果可缓存）"""
+    try:
+        return 'host' in inspect.signature(user_class.__init__).parameters
+    except (TypeError, ValueError):
+        # 内建类型或签名不可检视时回退到构造后赋值
+        return False
 
 
 class UserManager:
@@ -209,7 +221,6 @@ class UserManager:
                     await asyncio.sleep(delay)
             except Exception as e:
                 logger.warning("操作失败，项目 %d: %s", i, e)
-                continue
 
         if success_count > 0:
             logger.debug(
@@ -217,17 +228,23 @@ class UserManager:
 
     async def _create_and_start_user(self, user_class: Type['User']):
         """创建并启动单个用户"""
-        new_user: 'User' = user_class()
-        # 设置 host（如果用户类需要）
-        # 兼容字典和 Namespace 对象
+        # 提取 host 配置（兼容字典和 Namespace 对象）
         if hasattr(self.config, 'host'):
             # 处理 Namespace 对象
             host = getattr(self.config, 'host', None)
         else:
             # 处理字典对象
             host = self.config.get('host', None)
-        if host and hasattr(new_user, 'host'):
-            new_user.host = host
+
+        # HttpUser 在 __init__ 中校验 host 必填，构造后再赋值无效；
+        # 构造函数接受 host 参数时必须在构造时注入（-H 可作为唯一 host 来源）
+        if host and _accepts_host_parameter(user_class):
+            new_user: 'User' = user_class(host=host)
+        else:
+            new_user: 'User' = user_class()
+            # 构造函数不接受 host 参数时，回退到构造后赋值
+            if host and hasattr(new_user, 'host'):
+                new_user.host = host
 
         new_user.start_tasks()
         self.active_users.append(new_user)
@@ -236,6 +253,12 @@ class UserManager:
         """终止单个用户"""
         if user.tasks is not None and not user.tasks.done():
             await user.stop_tasks()
+
+    def _get_active_users(self) -> List['User']:
+        """获取所有活跃用户（任务未完成的）"""
+        return [
+            user for user in self.active_users
+            if user.tasks is not None and not user.tasks.done()]
 
     async def _select_users_to_stop(self, user_count: int):
         """
@@ -265,8 +288,7 @@ class UserManager:
                - 调用权重分配算法计算各类型应停止数量
                - 按启动顺序选择要停止的用户
         """
-        active_users = [
-            user for user in self.active_users if user.tasks is not None and not user.tasks.done()]
+        active_users = self._get_active_users()
 
         if user_count >= len(active_users):
             return active_users
@@ -304,13 +326,11 @@ class UserManager:
     @property
     def active_user_count(self) -> int:
         """返回当前活跃用户数量"""
-        return sum(
-            1 for user in self.active_users if user.tasks is not None and not user.tasks.done())
+        return len(self._get_active_users())
 
     def cleanup_inactive_users(self):
         """清理非活跃用户实例（已完成的任务）"""
-        self.active_users = [
-            user for user in self.active_users if user.tasks is not None and not user.tasks.done()]
+        self.active_users = self._get_active_users()
 
     async def stop_all_users(self):
         """停止所有用户"""

@@ -1,7 +1,7 @@
 # encoding: utf-8
 
 import asyncio
-from typing import List
+from typing import List, Optional
 
 from aiotest.logger import logger
 
@@ -40,12 +40,11 @@ class TaskManager:
         if tasks_to_cancel:
             # 等待所有取消操作完成
             await asyncio.gather(*tasks_to_cancel, return_exceptions=True)
-            # 清理已完成的任务
-            self.background_tasks = [
-                t for t in self.background_tasks if not t.done()]
+            # 清理已完成的任务（与 clear_completed_tasks 同一逻辑）
+            self.clear_completed_tasks()
 
-    def get_task_by_name(self, name: str) -> asyncio.Task:
-        """根据名称获取任务"""
+    def get_task_by_name(self, name: str) -> Optional[asyncio.Task]:
+        """根据名称获取任务，未找到时返回 None"""
         for task in self.background_tasks:
             if task.get_name() == name:
                 return task

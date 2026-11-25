@@ -63,15 +63,7 @@ class WaitTimeResolver:
     async def _resolve_sync_function_wait_time(cls, wait_time_func) -> float:
         """解析同步函数等待时间"""
         try:
-            result = wait_time_func()
-            if isinstance(result, (int, float)):
-                wait_seconds = float(result)
-                if wait_seconds < 0:
-                    raise ValueError(f"等待时间不能为负数: {wait_seconds}")
-                return wait_seconds
-            if isinstance(result, (tuple, list)) and len(result) == 2:
-                return await cls._resolve_range_wait_time(result)
-            raise ValueError(f"wait_time 同步函数必须返回数值或范围元组，得到: {type(result)}")
+            return await cls._resolve_function_result(wait_time_func(), "同步")
         except Exception as e:
             raise ValueError(f"wait_time 同步函数执行失败: {e}") from e
 
@@ -79,17 +71,22 @@ class WaitTimeResolver:
     async def _resolve_async_function_wait_time(cls, wait_time_func) -> float:
         """解析异步函数等待时间"""
         try:
-            result = await wait_time_func()
-            if isinstance(result, (int, float)):
-                wait_seconds = float(result)
-                if wait_seconds < 0:
-                    raise ValueError(f"等待时间不能为负数: {wait_seconds}")
-                return wait_seconds
-            if isinstance(result, (tuple, list)) and len(result) == 2:
-                return await cls._resolve_range_wait_time(result)
-            raise ValueError(f"wait_time 异步函数必须返回数值或范围元组，得到: {type(result)}")
+            return await cls._resolve_function_result(await wait_time_func(), "异步")
         except Exception as e:
             raise ValueError(f"wait_time 异步函数执行失败: {e}") from e
+
+    @classmethod
+    async def _resolve_function_result(cls, result, kind: str) -> float:
+        """校验函数返回值并解析为等待秒数（kind 用于错误文案：同步/异步）"""
+        if isinstance(result, (int, float)):
+            wait_seconds = float(result)
+            if wait_seconds < 0:
+                raise ValueError(f"等待时间不能为负数: {wait_seconds}")
+            return wait_seconds
+        if isinstance(result, (tuple, list)) and len(result) == 2:
+            return await cls._resolve_range_wait_time(result)
+        raise ValueError(
+            f"wait_time {kind}函数必须返回数值或范围元组，得到: {type(result)}")
 
     @classmethod
     async def wait(cls, wait_time) -> None:
@@ -204,6 +201,8 @@ class UserMeta(type):
                 weight_val = getattr(value, 'weight', 1)
                 jobs.append((value, weight_val))
 
+        # 有意设计：子类若显式定义 jobs 属性，将完全覆盖父类收集结果
+        # （即自定义任务集，不继承父类任务）；未定义时使用自动收集的任务。
         if "jobs" not in class_dict:
             class_dict["jobs"] = jobs
 
@@ -281,6 +280,7 @@ class User(metaclass=UserMeta):
     ) -> None:
         super().__init__()
         self.tasks: Optional[asyncio.Task[None]] = None
+        self._stopped = False  # on_stop 是否已执行（防止重复清理）
         self._pause_event = asyncio.Event()
         self._pause_event.set()  # 初始状态为非暂停
 
@@ -347,6 +347,18 @@ class User(metaclass=UserMeta):
     async def on_stop(self) -> None:
         """用户停止时调用，用于清理资源或保存状态。"""
 
+    async def _call_on_stop(self) -> None:
+        """
+        调用 on_stop() 并保证只执行一次。
+
+        _run 异常路径与 stop_tasks()（或 __aexit__）可能先后触发清理，
+        通过 _stopped 标志避免 on_stop 被重复调用。
+        """
+        if self._stopped:
+            return
+        self._stopped = True
+        await self.on_stop()
+
     def start_tasks(self) -> None:
         """启动用户任务。如果任务已在运行，则抛出异常。"""
         if self.tasks is not None and not self.tasks.done():
@@ -370,7 +382,7 @@ class User(metaclass=UserMeta):
             except asyncio.CancelledError:
                 pass
 
-        await self.on_stop()
+        await self._call_on_stop()
         self.tasks = None  # 清理引用
 
     async def pause_tasks(self) -> None:
@@ -422,7 +434,9 @@ class User(metaclass=UserMeta):
             pass
         except Exception as e:
             await self._handle_error(e)
-            await self.on_stop()
+            # 任务已异常终止，在此立即清理资源；
+            # 若之后 stop_tasks() 再次触发清理，_call_on_stop 会跳过
+            await self._call_on_stop()
 
     async def _run_sequential(self) -> None:
         """顺序执行所有任务，逐个完成任务。"""
@@ -446,8 +460,10 @@ class User(metaclass=UserMeta):
                 except Exception as e:
                     await self._handle_error(e)
                     break  # 跳出本次循环，不执行后面的接口任务，因为后续任务依赖前面的结果
-                # 任务后等待
-                await WaitTimeResolver.wait(self.wait_time)
+                finally:
+                    # 任务后等待（无论成败都执行一次，
+                    # 避免失败任务无间隔重试造成请求风暴）
+                    await WaitTimeResolver.wait(self.wait_time)
 
     async def _run_concurrent(self) -> None:
         """并发执行任务，支持权重分配和并发限制。"""
@@ -529,6 +545,7 @@ class HttpUser(User):
     - _client: HTTP客户端实例（延迟初始化）
     - _client_config: HTTP客户端配置参数
     - _client_initialized: 客户端是否已初始化标志
+    - _client_owned: 客户端是否由框架创建（决定 stop 时是否关闭）
     """
 
     def __init__(
@@ -561,20 +578,24 @@ class HttpUser(User):
         if self.host is None and client is None:
             raise ValueError("HttpUser 必须设置 host")
 
+        # 保存客户端配置，用于延迟初始化与 stop 后重启重建
+        self._client_config = {
+            'default_headers': default_headers,
+            'timeout': timeout,
+            'max_retries': max_retries,
+            'verify_ssl': verify_ssl,
+        }
+
         # 如果传入了预配置的客户端，使用它
         if client is not None:
             self._client = client
             self._client_initialized = True
+            # 外部传入的客户端由外部管理生命周期，stop 时不关闭
+            self._client_owned = False
         else:
             self._client = None
             self._client_initialized = False
-            # 保存客户端配置，用于延迟初始化
-            self._client_config = {
-                'default_headers': default_headers,
-                'timeout': timeout,
-                'max_retries': max_retries,
-                'verify_ssl': verify_ssl,
-            }
+            self._client_owned = True
 
     @property
     def client(self) -> HTTPClient:
@@ -597,12 +618,20 @@ class HttpUser(User):
                 # 直接调用__aenter__方法初始化，不使用上下文管理器
                 await self._client.__aenter__()
                 self._client_initialized = True
+                # 框架自建的客户端由框架负责关闭
+                self._client_owned = True
                 logger.debug(
                     "HTTP客户端初始化成功，主机: %s", 
                     self.host
                 )
             except Exception as e:
                 logger.error("初始化HTTP客户端失败: %s", e)
+                # __aenter__ 可能已创建部分会话资源，尝试关闭避免残留
+                if self._client is not None:
+                    try:
+                        await self._client.__aexit__(None, None, None)
+                    except Exception:
+                        pass
                 self._client = None
                 self._client_initialized = False
                 raise
@@ -630,21 +659,23 @@ class HttpUser(User):
         - 调用父类清理逻辑
         """
         if self._client is not None and self._client_initialized:
-            try:
-                logger.debug("正在关闭HTTP客户端，主机: %s", self.host)
-                await self._client.__aexit__(None, None, None)
-                logger.debug(
-                    "HTTP客户端关闭成功，主机: %s", 
-                    self.host
-                )
-            except Exception as e:
-                logger.error(
-                    "关闭HTTP客户端失败: %s", e,
-                    exc_info=True
-                )
-            finally:
-                self._client = None
-                self._client_initialized = False
+            # 仅关闭框架自建的客户端；外部预配置的共享客户端由外部管理
+            # 生命周期，这里只解除引用，避免任一用户停止即关闭共享会话
+            if self._client_owned:
+                try:
+                    logger.debug("正在关闭HTTP客户端，主机: %s", self.host)
+                    await self._client.__aexit__(None, None, None)
+                    logger.debug(
+                        "HTTP客户端关闭成功，主机: %s", 
+                        self.host
+                    )
+                except Exception as e:
+                    logger.error(
+                        "关闭HTTP客户端失败: %s", e,
+                        exc_info=True
+                    )
+            self._client = None
+            self._client_initialized = False
 
         await super().on_stop()
 
@@ -662,4 +693,4 @@ class HttpUser(User):
         """
         支持异步上下文管理器协议
         """
-        await self.on_stop()
+        await self._call_on_stop()

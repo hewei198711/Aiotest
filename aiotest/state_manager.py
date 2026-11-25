@@ -2,6 +2,7 @@
 
 import asyncio
 from enum import Enum
+from typing import Dict, List
 
 from aiotest.logger import logger
 
@@ -11,9 +12,8 @@ class RunnerState(Enum):
     STARTING = "starting"  # 启动中
     RUNNING = "running"    # 运行中
     PAUSED = "paused"      # 暂停
-    MISSING = "missing"    # 丢失（仅用于工作节点）
+    MISSING = "missing"    # 丢失（仅用于工作节点标记）
     STOPPING = "stopping"  # 停止中
-    QUITTING = "quitting"  # 退出中
 
     def __str__(self):
         return self.value
@@ -21,6 +21,18 @@ class RunnerState(Enum):
 
 class StateManager:
     """状态管理器，负责状态转换和状态机实现"""
+
+    # 合法状态转换规则（类常量）。
+    # 注意：退出不走状态机——quit() 通过 set_quit_state() 置位
+    # is_quit 标志实现，置位后下方守卫会早退、状态冻结。
+    _VALID_TRANSITIONS: Dict[RunnerState, List[RunnerState]] = {
+        RunnerState.READY: [RunnerState.STARTING],
+        RunnerState.STARTING: [RunnerState.RUNNING, RunnerState.STOPPING],
+        RunnerState.RUNNING: [RunnerState.PAUSED, RunnerState.STOPPING],
+        RunnerState.PAUSED: [RunnerState.RUNNING, RunnerState.STOPPING],
+        RunnerState.MISSING: [],  # 丢失状态无合法出边（仅作节点标记）
+        RunnerState.STOPPING: [RunnerState.READY],
+    }
 
     def __init__(self):
         self.state: RunnerState = RunnerState.READY
@@ -39,28 +51,19 @@ class StateManager:
 
         典型状态转换：
             READY -> STARTING -> RUNNING -> STOPPING -> READY
-            RUNNING -> QUITTING (紧急停止)
-            MISSING -> QUITTING (丢失节点只能退出)
 
         注意：
+            - 退出不走状态机：quit() 通过 set_quit_state() 置位 is_quit
+              标志实现，置位后所有状态转换一律早退、状态冻结。
             - 使用状态锁保证线程安全。
             - 自动记录状态变更日志。
         """
-        # 定义合法状态转换规则
-        valid_transitions = {
-            RunnerState.READY: [RunnerState.STARTING, RunnerState.QUITTING],
-            RunnerState.STARTING: [RunnerState.RUNNING, RunnerState.STOPPING, RunnerState.QUITTING],
-            RunnerState.RUNNING: [RunnerState.PAUSED, RunnerState.STOPPING, RunnerState.QUITTING],
-            RunnerState.PAUSED: [RunnerState.RUNNING, RunnerState.STOPPING, RunnerState.QUITTING],
-            RunnerState.MISSING: [RunnerState.QUITTING],  # 丢失状态只能退出
-            RunnerState.STOPPING: [RunnerState.READY, RunnerState.QUITTING],
-            RunnerState.QUITTING: []
-        }
-
         async with self._state_lock:
+            # is_quit 置位后状态机冻结：退出真相是 is_quit 标志，
+            # 后续所有状态转换都会被这里吞掉
             if self.is_quit or self.state == new_state:
                 return
-            if new_state not in valid_transitions.get(self.state, []):
+            if new_state not in self._VALID_TRANSITIONS.get(self.state, []):
                 raise RuntimeError(
                     f"无效的状态转换: {self.state} -> {new_state}")
 
@@ -68,7 +71,13 @@ class StateManager:
             self.state = new_state
 
     def set_quit_state(self) -> None:
-        """设置退出状态"""
+        """
+        设置退出状态。
+
+        退出真相是 is_quit 标志：置位后 transition_state 一律早退，
+        状态机不再流转，当前状态保持冻结。
+        所有退出判断应使用 is_in_quit_state()。
+        """
         self.is_quit = True
 
     def is_in_quit_state(self) -> bool:
@@ -89,7 +98,8 @@ class StateManager:
 
     def can_stop(self) -> bool:
         """检查是否可以停止"""
-        return self.state in [RunnerState.STARTING, RunnerState.RUNNING]
+        return self.state in [
+            RunnerState.STARTING, RunnerState.RUNNING, RunnerState.PAUSED]
 
     def can_pause(self) -> bool:
         """检查是否可以暂停"""

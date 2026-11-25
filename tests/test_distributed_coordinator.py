@@ -7,7 +7,6 @@ import pytest
 
 from aiotest.distributed_coordinator import (HEARTBEAT_INTERVAL,
                                              HEARTBEAT_LIVENESS,
-                                             MAX_BATCH_SIZE,
                                              DistributedCoordinator,
                                              DistributedLock, RedisConnection)
 
@@ -269,12 +268,12 @@ class TestDistributedCoordinator:
     @allure.title("测试发布批量请求指标")
     @allure.severity(allure.severity_level.NORMAL)
     async def test_publish_request_metrics_batch(self, redis_client):
-        """测试发布批量请求指标（超过最大批量大小）"""
+        """测试发布批量请求指标（多条数据一次性发布）"""
         coordinator = DistributedCoordinator(
             redis_client, role="worker", node_id="worker_1")
-        # 创建超过 MAX_BATCH_SIZE 的数据
+        # 创建批量指标数据
         metrics_data = [{"url": f"/test{i}", "response_time": 0.1}
-                        for i in range(MAX_BATCH_SIZE + 1)]
+                        for i in range(50)]
         await coordinator.publish("request_metrics", metrics_data, worker_id="worker_1")
 
         # 验证发布成功，不抛出异常

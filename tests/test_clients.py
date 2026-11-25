@@ -312,7 +312,8 @@ class TestResponseContextManager:
         assert ResponseContextManager._estimate_size("test") == 4
         assert ResponseContextManager._estimate_size({"key": "value"}) == 16
         assert ResponseContextManager._estimate_size([1, 2, 3]) == 9
-        assert ResponseContextManager._estimate_size(b"bytes") == 8
+        # bytes 直接取实际字节数（b"bytes" 共5字节）
+        assert ResponseContextManager._estimate_size(b"bytes") == 5
 
     @allure.story("数据处理")
     @allure.title("测试 _safe_get_headers 方法")
@@ -393,8 +394,8 @@ class TestResponseContextManager:
         assert ResponseContextManager._estimate_size({}) == 2
         # 测试空列表（转换为字符串后为"[]"，编码后长度为2）
         assert ResponseContextManager._estimate_size([]) == 2
-        # 测试字节串（str(b"test") = "b'test'"，编码后长度为7）
-        assert ResponseContextManager._estimate_size(b"test") == 7
+        # 测试字节串（bytes 直接取实际字节数，b"test" 共4字节）
+        assert ResponseContextManager._estimate_size(b"test") == 4
         # 测试嵌套字典
         nested_dict = {"key": {"nested": "value"}}
         assert ResponseContextManager._estimate_size(nested_dict) > 0

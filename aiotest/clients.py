@@ -2,7 +2,7 @@
 """
 HTTP客户端模块，提供异步HTTP请求功能
 
-封装了基于aiohttp的异步HTTP请求功能，支持连接池管理、自动重试、请求/响应拦截器等特性。
+封装了基于aiohttp的异步HTTP请求功能，支持连接池管理、自动重试等特性。
 """
 
 import asyncio
@@ -77,12 +77,20 @@ class ConnectionPoolManager:
                 # 连接池已关闭或事件循环不匹配，删除它
                 del self._connectors[host]
                 logger.debug("主机 %s 的连接池已关闭或事件循环不匹配，将创建新的连接池", host)
-            
+
             # 创建新的连接池
             # 创建 SSL 上下文，优化 SSL 握手
+            verify_ssl = CONNECTOR_SETTINGS.get('verify_ssl', True)
             ssl_context = ssl.create_default_context()
-            ssl_context.check_hostname = CONNECTOR_SETTINGS.get('verify_ssl', True)
-            
+            if not verify_ssl:
+                # 不验证模式需同时关闭证书校验与主机名校验：
+                # 仅关 check_hostname 时 verify_mode 仍为 CERT_REQUIRED，
+                # 自签名证书连接仍会失败
+                ssl_context.check_hostname = False
+                ssl_context.verify_mode = ssl.CERT_NONE
+            else:
+                ssl_context.check_hostname = True
+
             # 创建新的连接池
             connector = aiohttp.TCPConnector(
                 limit=CONNECTOR_SETTINGS['limit'],
@@ -114,14 +122,6 @@ class ConnectionPoolManager:
 connection_pool_manager = ConnectionPoolManager()
 
 
-async def close_all_connections():
-    """
-    关闭所有连接池，在程序结束时调用
-    """
-    await connection_pool_manager.close()
-    logger.info("所有连接池已关闭")
-
-
 def configure_connector(limit=None, limit_per_host=None,
                         force_close=None, enable_cleanup_closed=None, family=None, verify_ssl=None):
     """动态配置连接池参数"""
@@ -147,7 +147,6 @@ class HTTPClient:
     - 提供异步HTTP请求功能（GET/POST/PUT/DELETE等）。
     - 支持连接池管理，优化高并发场景下的性能。
     - 自动重试机制，处理网络波动或临时故障。
-    - 请求/响应拦截器，支持自定义逻辑扩展。
     - 敏感信息过滤，避免日志泄露敏感数据。
     - 统一的错误处理，简化异常管理。
 
@@ -204,6 +203,18 @@ class HTTPClient:
             r'(password|token|api[_-]key|auth)=[^&]+', re.IGNORECASE
         )
 
+        # 缓存带重试的请求方法：backoff 装饰器在初始化时创建一次，
+        # 避免每个请求都重新构建装饰闭包（压测热路径开销）
+        self._request_with_retry_impl = backoff.on_exception(
+            backoff.expo,
+            (aiohttp.ClientError, asyncio.TimeoutError, ConnectionError, OSError),
+            max_tries=max_retries,
+            logger=logger,
+            giveup=lambda e: isinstance(
+                e, aiohttp.ClientResponseError) and e.status in [
+                400, 401, 403, 404]
+        )(self._do_request_impl)
+
         # 设置默认请求头
         self.default_headers.update({
             'Accept': 'application/json',
@@ -225,7 +236,7 @@ class HTTPClient:
         # 从全局连接池管理器获取连接池
         host = self.base_url.rstrip('/')
         self._connector = await connection_pool_manager.get_connector(host)
-        
+
         self._session = aiohttp.ClientSession(
             base_url=self.base_url,
             headers=self.default_headers,
@@ -251,6 +262,10 @@ class HTTPClient:
         """手动关闭HTTP客户端并清理资源"""
         await self.__aexit__(None, None, None)
 
+    async def _do_request_impl(self, method: str, endpoint: str, kwargs: dict):
+        """执行实际请求（供重试装饰器包装）"""
+        return await self._session.request(method, endpoint, **kwargs)
+
     async def _request_with_retry(
         self,
         method: str,
@@ -273,20 +288,7 @@ class HTTPClient:
         if self.max_retries == 0:
             return await self._session.request(method, endpoint, **kwargs)
 
-        @backoff.on_exception(
-            backoff.expo,
-            (aiohttp.ClientError, asyncio.TimeoutError, ConnectionError, OSError),
-            max_tries=self.max_retries,
-            logger=logger,
-            giveup=lambda e: isinstance(
-                e, aiohttp.ClientResponseError) and e.status in [
-                400, 401, 403, 404]
-        )
-        async def _do_request():
-            """执行实际请求"""
-            return await self._session.request(method, endpoint, **kwargs)
-
-        return await _do_request()
+        return await self._request_with_retry_impl(method, endpoint, kwargs)
 
     def request(
         self,
@@ -571,8 +573,8 @@ class ResponseContextManager:
         self._processed_data = None
         self._error_handled = False
 
-    async def __aenter__(self) -> Dict[str, Any]:
-        """进入上下文，返回处理后的响应数据"""
+    async def __aenter__(self) -> 'ResponseContextManager':
+        """进入上下文，完成请求并解析响应，返回自身（通过属性访问结果）"""
         try:
             self._response = await self._request_coroutine
             self._processed_data = await self._process_response(self._response)
@@ -590,6 +592,10 @@ class ResponseContextManager:
         except Exception as e:
             # 处理请求错误（如超时、连接错误等）
             self.log.assertion_result = "fail"
+            # __aenter__ 抛异常时不会调用 __aexit__，
+            # 需在此关闭响应释放连接，避免连接泄漏
+            if self._response:
+                self._response.close()
             await self._handle_error(e)
             # 重新抛出异常，让测试用例捕获
             raise
@@ -644,12 +650,27 @@ class ResponseContextManager:
         return self._processed_data['headers']
 
     async def text(self) -> str:
-        """提供 text() 方法,保持和aiohttp一致的操作"""
-        return self._processed_data['data']
+        """
+        提供 text() 方法，保持和aiohttp一致的操作：恒返回字符串。
 
-    async def json(self) -> dict:
-        """提供 json() 方法,保持和aiohttp一致的操作"""
-        return self._processed_data['data']
+        响应为 JSON 时数据已被解析为 dict/list，此处序列化回字符串。
+        """
+        data = self._processed_data['data']
+        if isinstance(data, str):
+            return data
+        return json.dumps(data, ensure_ascii=False)
+
+    async def json(self) -> Any:
+        """
+        提供 json() 方法，保持和aiohttp一致的操作：返回解析后的 JSON 数据。
+
+        响应为纯文本时尝试按 JSON 解析，解析失败抛出 ValueError。
+        """
+        data = self._processed_data['data']
+        if isinstance(data, str):
+            # 文本响应中可能仍是合法 JSON，尝试解析
+            return json.loads(data)
+        return data
 
     async def _process_response(
             self, response: aiohttp.ClientResponse) -> Dict[str, Any]:
@@ -743,7 +764,7 @@ class ResponseContextManager:
         # 安全获取响应数据
         processed_data = getattr(self, '_processed_data', {})
         response_data = processed_data.get("data") if isinstance(processed_data, dict) else None
-        
+
         self.log.error = {
             "message": error_message,
             "exc_type": exc_type.__name__,
@@ -812,4 +833,13 @@ class ResponseContextManager:
         """
         if data is None:
             return 0
-        return len(str(data).encode('utf-8'))
+        if isinstance(data, (bytes, bytearray)):
+            # bytes 直接取长度，避免 str() 产生 b'...' 包装偏差
+            return len(data)
+        if isinstance(data, str):
+            return len(data.encode('utf-8'))
+        # dict/list 等按 JSON 序列化大小估算，与真实传输格式一致
+        try:
+            return len(json.dumps(data, ensure_ascii=False).encode('utf-8'))
+        except (TypeError, ValueError):
+            return len(str(data).encode('utf-8'))

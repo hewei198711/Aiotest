@@ -6,13 +6,16 @@ import logging
 import allure
 import pytest
 
+from aiotest.events import (startup_completed, test_quit,
+                            worker_request_metrics)
 from aiotest.exception import InvalidRateError, InvalidUserCountError
 from aiotest.metrics import MetricsCollector
 from aiotest.runner_factory import (NODE_TYPE_LOCAL, NODE_TYPE_MASTER,
                                     NODE_TYPE_WORKER, BaseRunner,
-                                    EventHandlerRegistry, RunnerFactory,
+                                    RunnerFactory,
                                     on_startup_completed,
                                     on_worker_request_metrics,
+                                    register_event_handlers,
                                     validate_load_params, validate_params)
 from aiotest.shape import LoadUserShape
 from aiotest.state_manager import RunnerState
@@ -103,39 +106,73 @@ class TestValidateParams:
 
 
 @allure.feature("事件处理器注册")
-class TestEventHandlerRegistry:
-    """事件处理器注册中心的测试用例"""
+class TestRegisterEventHandlers:
+    """事件处理器注册函数的测试用例"""
+
+    @staticmethod
+    async def _reset_handlers():
+        """清理全局事件中的注册处理器，避免跨测试污染"""
+        for event in (startup_completed, worker_request_metrics):
+            await event.remove_handler(on_startup_completed)
+            await event.remove_handler(on_worker_request_metrics)
+
+    @staticmethod
+    def _handler_count(event, handler):
+        return sum(1 for _, h in event._handlers if h is handler)
 
     @allure.story("注册功能")
-    @allure.title("测试事件处理器注册")
+    @allure.title("测试按节点类型注册事件处理器")
     @allure.severity(allure.severity_level.NORMAL)
-    async def test_register_handlers(self):
-        """测试事件处理器注册功能"""
-        registry = EventHandlerRegistry()
+    async def test_register_handlers_by_node_type(self):
+        """非Worker注册通用处理器，Master额外注册指标处理器，Worker均不注册"""
+        await self._reset_handlers()
 
         class MockRunner:
-            node = NODE_TYPE_LOCAL
+            def __init__(self, node):
+                self.node = node
 
-        runner = MockRunner()
-        await registry.register_handlers(runner)
+        try:
+            # Local：仅注册 startup_completed
+            await register_event_handlers(MockRunner(NODE_TYPE_LOCAL))
+            assert self._handler_count(
+                startup_completed, on_startup_completed) == 1
+            assert self._handler_count(
+                worker_request_metrics, on_worker_request_metrics) == 0
 
-        assert id(runner) in registry._registered_handlers
+            # Master：startup_completed 不重复注册，额外注册指标处理器
+            await register_event_handlers(MockRunner(NODE_TYPE_MASTER))
+            assert self._handler_count(
+                startup_completed, on_startup_completed) == 1
+            assert self._handler_count(
+                worker_request_metrics, on_worker_request_metrics) == 1
+
+            # Worker：均不注册
+            await register_event_handlers(MockRunner(NODE_TYPE_WORKER))
+            assert self._handler_count(
+                startup_completed, on_startup_completed) == 1
+            assert self._handler_count(
+                worker_request_metrics, on_worker_request_metrics) == 1
+        finally:
+            await self._reset_handlers()
 
     @allure.story("重复注册")
-    @allure.title("测试重复注册处理")
+    @allure.title("测试重复注册由事件系统去重")
     @allure.severity(allure.severity_level.NORMAL)
     async def test_duplicate_registration(self):
-        """测试重复注册不会出错"""
-        registry = EventHandlerRegistry()
+        """重复调用不会重复添加处理器（事件系统按对象身份去重）"""
+        await self._reset_handlers()
 
         class MockRunner:
             node = NODE_TYPE_LOCAL
 
-        runner = MockRunner()
-        await registry.register_handlers(runner)
-        await registry.register_handlers(runner)
-
-        assert len(registry._registered_handlers) == 1
+        try:
+            runner = MockRunner()
+            await register_event_handlers(runner)
+            await register_event_handlers(runner)
+            assert self._handler_count(
+                startup_completed, on_startup_completed) == 1
+        finally:
+            await self._reset_handlers()
 
 
 @allure.feature("基础运行器")
@@ -488,6 +525,29 @@ class TestBaseRunnerAsyncMethods:
         # 第二次退出（应该不执行任何操作）
         await runner.quit()
 
+    @allure.story("退出测试")
+    @allure.title("测试退出运行器触发 test_quit 事件")
+    @allure.severity(allure.severity_level.NORMAL)
+    async def test_quit_fires_test_quit_event(self, base_config):
+        """quit() 应触发 test_quit 事件（B-6）"""
+        load_shape = TestLoadShape()
+        runner = BaseRunner([TestUser], load_shape, base_config)
+
+        received = []
+
+        async def on_quit(**kwargs):
+            received.append(kwargs)
+
+        await test_quit.add_handler(on_quit)
+        try:
+            await runner.quit()
+        finally:
+            await test_quit.remove_handler(on_quit)
+
+        # 事件触发一次，且携带 runner 参数
+        assert len(received) == 1
+        assert received[0].get("runner") is runner
+
     @allure.story("应用负载")
     @allure.title("测试应用负载")
     @allure.severity(allure.severity_level.NORMAL)
@@ -552,6 +612,38 @@ class TestBaseRunnerAsyncMethods:
 
         # 验证CPU使用率被收集
         assert isinstance(runner.cpu_usage, (int, float))
+
+    @allure.story("退出测试")
+    @allure.title("测试退出时清理指标收集器与Prometheus服务")
+    @allure.severity(allure.severity_level.NORMAL)
+    async def test_quit_cleans_metrics_and_prometheus(self, base_config):
+        """quit() 须停止 metrics_collector 并 cleanup prometheus_runner（N-2）"""
+        load_shape = TestLoadShape()
+        runner = BaseRunner([TestUser], load_shape, base_config)
+
+        calls = []
+
+        class FakeCollector:
+            async def stop(self):
+                calls.append("metrics_stop")
+
+        class FakePrometheus:
+            async def cleanup(self):
+                calls.append("prometheus_cleanup")
+
+        # BaseRunner 本身不创建这些属性，Local/Worker 才有；
+        # 手动注入以验证 quit() 的清理分支
+        runner.metrics_collector = FakeCollector()
+        runner.prometheus_runner = FakePrometheus()
+        runner.prometheus_server_started = True
+
+        await runner.quit()
+
+        assert "metrics_stop" in calls
+        assert "prometheus_cleanup" in calls
+        assert runner.prometheus_runner is None
+        assert runner.prometheus_server_started is False
+        assert runner.state_manager.is_in_quit_state()
 
 
 @allure.feature("高速率警告")

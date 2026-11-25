@@ -102,20 +102,14 @@ class LoadShapeManager:
                         continue
 
                     # 解析新配置
-                    try:
-                        user_count, rate = shape_new
-                        logger.info(
-                            "负载更新: %d 个用户，速率: %.2f/s", user_count, rate)
+                    user_count, rate = shape_new
+                    logger.info(
+                        "负载更新: %d 个用户，速率: %.2f/s", user_count, rate)
 
-                        # 应用新配置 - 调用回调函数
-                        await self.apply_load_callback(user_count, rate)
-                        shape_last = shape_new
-                        consecutive_errors = 0  # 重置错误计数
-
-                    except (ValueError, TypeError) as e:
-                        consecutive_errors = await self._handle_error(e, consecutive_errors)
-                        if consecutive_errors > 3:
-                            break
+                    # 应用新配置 - 调用回调函数
+                    await self.apply_load_callback(user_count, rate)
+                    shape_last = shape_new
+                    consecutive_errors = 0  # 重置错误计数
 
                 except Exception as e:
                     consecutive_errors = await self._handle_error(e, consecutive_errors)

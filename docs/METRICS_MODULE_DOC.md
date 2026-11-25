@@ -304,18 +304,16 @@ def __init__(self, node_type: str = "local", redis_client=None, node_id: str = "
 
 | 函数名 | 作用 | 参数 | 返回值 | 调用时机 |
 | ----- | ---- | ---- | ----- | ------- |
-| `get_unified_collector()` | 获取统一的指标收集器实例 | 无 | `MetricsCollector` | 需要使用收集器时 |
-| `init_unified_collector(node_type, redis_client, node_id, coordinator, batch_size, flush_interval, buffer_size)` | 初始化统一的指标收集器 | 见方法签名 | `MetricsCollector` | 运行器初始化时 |
-| `is_unified_collector_initialized()` | 检查统一指标收集器是否已初始化 | 无 | `bool` | 检查收集器状态时 |
+| `init_unified_collector(node_type, redis_client, node_id, coordinator, batch_size, flush_interval, buffer_size)` | 初始化并启动统一的指标收集器（重复调用先停止旧实例） | 见方法签名 | `MetricsCollector` | 运行器初始化时 |
 
 ## 调用逻辑流程
 
 ### 初始化流程
 
-1. **运行器初始化** → 调用 `init_unified_collector()`
-1. **创建收集器实例** → 初始化 `MetricsCollector`
-1. **启动收集器** → 调用 `start()` 方法
-1. **注册事件处理器** → 调用 `_register_event_handlers()`
+1. **运行器初始化** → 调用 `await init_unified_collector()`
+1. **重复初始化检查** → 旧实例存在时先调用其 `stop()` 注销事件处理器
+1. **创建并启动收集器** → 初始化 `MetricsCollector` 并调用 `start()`
+1. **注册事件处理器** → 注册请求指标处理器
 1. **启动刷新任务** → Worker 节点创建 `_flush_buffer()` 任务
 
 ### 请求处理流程
@@ -462,7 +460,7 @@ topk(1, avg(aiotest_worker_cpu_percent) by (machine_id))
 
 ```python
 # 初始化指标收集器
-collector = init_unified_collector(
+collector = await init_unified_collector(
     node_type="worker",
     redis_client=redis_client,
     node_id="worker_01",

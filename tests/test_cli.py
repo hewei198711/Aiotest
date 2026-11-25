@@ -32,7 +32,6 @@ class TestParseOptions:
         assert options.worker is False
         assert options.expect_workers == 1
         assert options.loglevel == "INFO"
-        assert options.logfile is None
         assert options.prometheus_port == 8089
         assert options.metrics_collection_interval == 5.0
         assert options.metrics_batch_size == 100
@@ -53,7 +52,6 @@ class TestParseOptions:
             "--master",
             "--expect-workers", "3",
             "--loglevel", "DEBUG",
-            "--logfile", "test.log",
             "--prometheus-port", "8090",
             "--metrics-collection-interval", "10.0",
             "--metrics-batch-size", "200",
@@ -70,7 +68,6 @@ class TestParseOptions:
         assert options.worker is False
         assert options.expect_workers == 3
         assert options.loglevel == "DEBUG"
-        assert options.logfile == "test.log"
         assert options.prometheus_port == 8090
         assert options.metrics_collection_interval == 10.0
         assert options.metrics_batch_size == 200
@@ -102,9 +99,19 @@ class TestErrorHandling:
     @allure.story("文件验证")
     @allure.title("测试验证文件存在")
     @allure.severity(allure.severity_level.NORMAL)
-    def test_validate_file_exists(self):
+    def test_validate_file_exists(self, tmp_path):
         """测试验证文件存在"""
-        assert validate_file_exists("test_file.py", "test file") is True
+        test_file = tmp_path / "test_file.py"
+        test_file.write_text("", encoding="utf-8")
+        assert validate_file_exists(str(test_file), "test file") is True
+
+    @allure.story("文件验证")
+    @allure.title("测试验证文件不存在")
+    @allure.severity(allure.severity_level.NORMAL)
+    def test_validate_file_exists_missing(self, tmp_path):
+        """测试验证文件不存在"""
+        with pytest.raises(SystemExit):
+            validate_file_exists(str(tmp_path / "nonexistent.py"), "test file")
 
     @allure.story("文件验证")
     @allure.title("测试验证文件不存在")

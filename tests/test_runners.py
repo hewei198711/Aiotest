@@ -7,6 +7,7 @@ import pytest
 from aiohttp.test_utils import TestClient, TestServer
 
 from aiotest import runners
+from aiotest.events import test_quit
 from aiotest.exception import RunnerError
 from aiotest.runner_factory import (NODE_TYPE_LOCAL, NODE_TYPE_MASTER,
                                     NODE_TYPE_WORKER)
@@ -131,8 +132,7 @@ class TestHelperFunctions:
         config = MockConfig()
 
         # 启动服务
-        prometheus_runner, started = await start_prometheus_service(config)
-        assert started is True
+        prometheus_runner = await start_prometheus_service(config)
 
         # 清理资源
         await prometheus_runner.cleanup()
@@ -494,6 +494,43 @@ class TestLocalRunner:
         # 清理资源
         await runner.quit()
 
+    @allure.story("指标收集")
+    @allure.title("测试LocalRunner停止时回收CPU采集子任务")
+    @allure.severity(allure.severity_level.NORMAL)
+    async def test_local_runner_collect_node_metrics_cancels_cpu_task(
+            self, mock_config, test_load_shape):
+        """_collect_node_metrics 被取消时须在 finally 中回收 cpu_task（N-3）"""
+        config = mock_config(prometheus_port=8014,
+                             metrics_collection_interval=0.05)
+        runner = LocalRunner([], test_load_shape, config)
+        # initialize() 才会赋值 metrics_collection_interval 等属性
+        await runner.initialize()
+
+        # 记录启动前已存在的同名任务，避免受其他用例残留任务干扰
+        before = {t for t in asyncio.all_tasks()
+                  if t.get_name() == "cpu_metrics_collector"}
+
+        # 直接启动节点指标收集任务（内部会创建 cpu_metrics_collector 子任务）
+        collect_task = asyncio.create_task(runner._collect_node_metrics())
+        await asyncio.sleep(0.1)
+
+        new_cpu = [t for t in asyncio.all_tasks()
+                   if t.get_name() == "cpu_metrics_collector" and t not in before]
+        assert len(new_cpu) == 1
+        cpu_task = new_cpu[0]
+        assert not cpu_task.done()
+
+        # 模拟 stop()→cancel_all_tasks 取消父任务（stop 不置 is_quit）
+        collect_task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await collect_task
+
+        # 父任务被取消后，CPU 子任务应已在 finally 中被回收
+        assert cpu_task.done()
+
+        # 清理资源
+        await runner.quit()
+
 
 @allure.feature("WorkerRunner")
 class TestWorkerRunner:
@@ -766,7 +803,7 @@ class TestMasterRunner:
         assert runner.workers == {}
         assert runner.metrics_collector is None
         assert runner.cpu_usage == 0
-        assert runner.background_tasks == []
+        assert runner.task_manager.background_tasks == []
         assert runner._load_shape_manager is None
         assert runner.prometheus_runner is None
         assert runner.prometheus_server_started is False
@@ -811,7 +848,7 @@ class TestMasterRunner:
         assert runner.metrics_collector is not None
         assert runner.prometheus_runner is not None
         assert runner.prometheus_server_started is True
-        assert len(runner.background_tasks) == 3
+        assert len(runner.task_manager.background_tasks) == 3
 
         # 清理资源
         await runner.quit()
@@ -851,6 +888,54 @@ class TestMasterRunner:
         assert len(distribution) == 3
         assert sum(distribution) == 10
         assert 4 in distribution  # 10 / 3 = 3 余 1，所以有一个节点会分配到 4
+
+    @allure.story("资源分配")
+    @allure.title("测试MasterRunner小数速率分配不截断")
+    @allure.severity(allure.severity_level.NORMAL)
+    def test_master_runner_distribute_rate_fractional(self):
+        """小数速率应按浮点均分，不能因 int() 截断出现 0 速率 Worker"""
+        # 使用真实参数进行测试
+        user_types = []
+
+        # 创建一个简单的负载形状类
+        class TestLoadShape:
+            def tick(self):
+                return None
+
+        load_shape = TestLoadShape()
+
+        # 创建一个简单的Redis客户端模拟
+        class MockRedisClient(_BaseMockRedisClient):
+            pass
+
+        redis_client = MockRedisClient()
+
+        class MockConfig:
+            def __init__(self):
+                self.prometheus_port = 8000
+
+        config = MockConfig()
+
+        # 创建MasterRunner实例
+        runner = MasterRunner(user_types, load_shape, config, redis_client)
+
+        # 小数速率 1.5 分配给 2 个 Worker：不应截断为 [1, 0]，而是 [0.75, 0.75]
+        distribution = runner._distribute_rate(1.5, 2)
+        assert len(distribution) == 2
+        assert all(r > 0 for r in distribution)
+        assert sum(distribution) == pytest.approx(1.5)
+
+        # 速率 0.5 分配给 2 个 Worker：每节点 0.25
+        distribution = runner._distribute_rate(0.5, 2)
+        assert all(r > 0 for r in distribution)
+        assert sum(distribution) == pytest.approx(0.5)
+
+        # 整数速率仍保持精确分配
+        distribution = runner._distribute_rate(10, 2)
+        assert sum(distribution) == 10
+
+        # 无 Worker 时返回空列表
+        assert runner._distribute_rate(10, 0) == []
 
     @allure.story("命令处理")
     @allure.title("测试MasterRunner处理命令")
@@ -1064,6 +1149,28 @@ class TestMasterRunner:
         assert runner.load_shape_manager._task is None
         assert runner.state_manager.is_in_quit_state()
 
+    @allure.story("退出")
+    @allure.title("测试MasterRunner退出触发test_quit事件")
+    @allure.severity(allure.severity_level.NORMAL)
+    async def test_master_runner_quit_fires_test_quit_event(self):
+        """MasterRunner.quit() 应触发 test_quit 事件（B-6）"""
+        runner = await self._make_initialized_master(8012)
+
+        received = []
+
+        async def on_quit(**kwargs):
+            received.append(kwargs)
+
+        await test_quit.add_handler(on_quit)
+        try:
+            await runner.quit()
+        finally:
+            await test_quit.remove_handler(on_quit)
+
+        # 事件触发一次，且携带 runner 参数
+        assert len(received) == 1
+        assert received[0].get("runner") is runner
+
     @allure.story("暂停/恢复")
     @allure.title("测试MasterRunner暂停")
     @allure.severity(allure.severity_level.NORMAL)
@@ -1125,6 +1232,64 @@ class TestMasterRunner:
         assert runner.state_manager.get_current_state().value == "paused"
         # 验证是否发送了pause命令
         assert "pause" in published_commands
+
+        # 清理资源
+        await runner.quit()
+
+    @allure.story("暂停/恢复")
+    @allure.title("测试MasterRunner暂停恢复同步负载形状计时")
+    @allure.severity(allure.severity_level.NORMAL)
+    async def test_master_runner_pause_resume_sync_shape_timing(self):
+        """暂停/恢复时负载形状的 pause/resume 计时控制应被调用"""
+        # 使用真实参数进行测试
+        user_types = []
+        shape_calls = []
+
+        # 负载形状带 pause/resume 记录调用
+        class TestLoadShape:
+            def tick(self):
+                return None
+
+            def pause(self):
+                shape_calls.append("pause")
+
+            def resume(self):
+                shape_calls.append("resume")
+
+        load_shape = TestLoadShape()
+
+        class MockRedisClient(_BaseMockRedisClient):
+            pass
+
+        redis_client = MockRedisClient()
+
+        class MockConfig:
+            def __init__(self):
+                self.prometheus_port = 8014  # 使用不同端口避免冲突
+                self.metrics_batch_size = 100
+                self.metrics_flush_interval = 1.0
+                self.metrics_buffer_size = 10000
+
+        config = MockConfig()
+
+        # 创建MasterRunner实例
+        runner = MasterRunner(user_types, load_shape, config, redis_client)
+
+        # 初始化并启动
+        await runner.initialize()
+        await runner.start()
+
+        # 模拟测试运行中状态（按照正确的状态转换顺序）
+        await runner.state_manager.transition_state(RunnerState.STARTING)
+        await runner.state_manager.transition_state(RunnerState.RUNNING)
+
+        # 暂停测试：形状计时应被暂停
+        await runner.pause()
+        assert shape_calls == ["pause"]
+
+        # 恢复测试：形状计时应被恢复
+        await runner.resume()
+        assert shape_calls == ["pause", "resume"]
 
         # 清理资源
         await runner.quit()
@@ -1255,7 +1420,9 @@ class TestMasterRunner:
         runner.coordinator.publish = mock_publish
 
         # 测试广播启动命令 - 10个用户，速率10/s
-        await runner._broadcast_startup(10, 10)
+        # （传入健康Worker列表，避免内部心跳检查依赖真实Redis）
+        await runner._broadcast_startup(
+            10, 10, healthy_workers=list(runner.workers.values()))
 
         # 验证命令已发布给所有Worker
         assert len(published_commands) == 2
@@ -1320,6 +1487,357 @@ class TestMasterRunner:
 
         # 清理资源
         await runner.quit()
+
+    @allure.story("资源分配")
+    @allure.title("测试广播启动命令时过滤失联Worker")
+    @allure.severity(allure.severity_level.NORMAL)
+    async def test_master_runner_broadcast_startup_filters_missing(self):
+        """测试广播启动命令时过滤失联（MISSING）Worker - 失联节点不计入分配"""
+        user_types = []
+
+        class TestLoadShape:
+            def tick(self):
+                return None
+
+        load_shape = TestLoadShape()
+
+        published_commands = []
+
+        class MockRedisClient(_BaseMockRedisClient):
+            pass
+
+        redis_client = MockRedisClient()
+
+        class MockConfig:
+            def __init__(self):
+                self.prometheus_port = 8010  # 使用不同端口避免冲突
+                self.metrics_batch_size = 100
+                self.metrics_flush_interval = 1.0
+                self.metrics_buffer_size = 10000
+
+        config = MockConfig()
+
+        runner = MasterRunner(user_types, load_shape, config, redis_client)
+        await runner.initialize()
+
+        # 添加一个健康Worker和一个失联Worker
+        runner.workers["worker1"] = WorkerNode("worker1")
+        runner.workers["worker1"].status = RunnerState.READY
+        runner.workers["worker_missing"] = WorkerNode("worker_missing")
+        runner.workers["worker_missing"].status = RunnerState.MISSING
+
+        async def mock_publish(channel, data, worker_id=None, command=None):
+            published_commands.append({
+                "channel": channel,
+                "data": data,
+                "worker_id": worker_id,
+                "command": command
+            })
+
+        runner.coordinator.publish = mock_publish
+
+        # 广播启动命令，仅传入健康Worker
+        await runner._broadcast_startup(
+            10, 10, healthy_workers=[runner.workers["worker1"]])
+
+        # 验证只有健康Worker收到命令，且分配了全部10个用户
+        assert len(published_commands) == 1
+        assert published_commands[0]["worker_id"] == "worker1"
+        assert published_commands[0]["data"]["user_count"] == 10
+
+        # 清理资源
+        await runner.quit()
+
+    @allure.story("资源分配")
+    @allure.title("测试用户数少于Worker数时报错退出")
+    @allure.severity(allure.severity_level.CRITICAL)
+    async def test_master_runner_broadcast_startup_insufficient_users(self):
+        """用户数 < Worker数时广播启动应报错，不发 user_count=0 命令（B-1）"""
+        user_types = []
+
+        class TestLoadShape:
+            def tick(self):
+                return None
+
+        class MockRedisClient(_BaseMockRedisClient):
+            pass
+
+        class MockConfig:
+            def __init__(self):
+                self.prometheus_port = 8008
+                self.metrics_batch_size = 100
+                self.metrics_flush_interval = 1.0
+                self.metrics_buffer_size = 10000
+
+        runner = MasterRunner(
+            user_types, TestLoadShape(), MockConfig(), MockRedisClient())
+        await runner.initialize()
+
+        # 添加三个Worker
+        for worker_id in ["worker1", "worker2", "worker3"]:
+            runner.workers[worker_id] = WorkerNode(worker_id)
+            runner.workers[worker_id].status = RunnerState.READY
+
+        published_commands = []
+
+        async def mock_publish(channel, data, worker_id=None, command=None):
+            published_commands.append({
+                "channel": channel,
+                "data": data,
+                "worker_id": worker_id,
+                "command": command
+            })
+
+        runner.coordinator.publish = mock_publish
+
+        # 3个Worker只有2个用户：无法为每个Worker分配至少1个用户，应报错
+        with pytest.raises(RunnerError) as exc_info:
+            await runner._broadcast_startup(
+                2, 5.0, healthy_workers=list(runner.workers.values()))
+
+        # 报错提示用户数与Worker数的关系
+        assert "无法为每个Worker分配至少1个用户" in str(exc_info.value)
+
+        # 校验发生在发布命令之前，无任何Worker收到启动命令
+        assert len(published_commands) == 0
+
+        # 清理资源
+        await runner.quit()
+
+    @allure.story("资源分配")
+    @allure.title("测试用户数少于Worker数时apply_load报错并转STOPPING")
+    @allure.severity(allure.severity_level.CRITICAL)
+    async def test_master_runner_apply_load_insufficient_users(self):
+        """apply_load 在用户数不足时报错退出，状态转 STOPPING（B-1）"""
+        runner = await self._make_initialized_master(8009)
+
+        # 添加三个Worker
+        for worker_id in ["worker1", "worker2", "worker3"]:
+            runner.workers[worker_id] = WorkerNode(worker_id)
+            runner.workers[worker_id].status = RunnerState.READY
+
+        # 替换健康Worker获取，隔离心跳检查
+        async def fake_get_healthy_workers():
+            return list(runner.workers.values())
+
+        runner.get_healthy_workers = fake_get_healthy_workers
+
+        published_commands = []
+
+        async def mock_publish(channel, data, worker_id=None, command=None):
+            published_commands.append({
+                "channel": channel,
+                "data": data,
+                "worker_id": worker_id,
+                "command": command
+            })
+
+        runner.coordinator.publish = mock_publish
+
+        # 3个Worker只有2个用户：启动失败，异常传播并转入 STOPPING
+        with pytest.raises(RunnerError):
+            await runner.apply_load(2, 5.0)
+
+        # 无任何Worker收到启动命令
+        assert len(published_commands) == 0
+
+        # 启动失败后状态转入 STOPPING（异常路径处理）
+        assert runner.state_manager.get_current_state() == RunnerState.STOPPING
+
+        # 清理资源
+        await runner.quit()
+
+    @allure.story("Worker管理")
+    @allure.title("测试get_healthy_workers包含PAUSED Worker")
+    @allure.severity(allure.severity_level.CRITICAL)
+    async def test_master_runner_get_healthy_workers_includes_paused(self):
+        """PAUSED 是运行状态而非失联，get_healthy_workers 应包含（B-3）"""
+        runner = await self._make_initialized_master(8010)
+
+        runner.workers["worker1"] = WorkerNode("worker1")
+        runner.workers["worker1"].status = RunnerState.RUNNING
+        runner.workers["worker2"] = WorkerNode("worker2")
+        runner.workers["worker2"].status = RunnerState.PAUSED
+        runner.workers["worker3"] = WorkerNode("worker3")
+        runner.workers["worker3"].status = RunnerState.READY
+
+        # worker1/worker2 存活，worker3 失联
+        async def fake_check_worker_heartbeat(worker_id):
+            return worker_id != "worker3"
+
+        runner.coordinator.check_worker_heartbeat = (
+            fake_check_worker_heartbeat)
+
+        healthy = await runner.get_healthy_workers()
+        healthy_ids = {w.node_id for w in healthy}
+
+        # PAUSED Worker 计入健康列表，失联 Worker 被过滤
+        assert healthy_ids == {"worker1", "worker2"}
+
+        # 失联节点被标记为 MISSING
+        assert runner.workers["worker3"].status == RunnerState.MISSING
+
+        # 清理资源
+        await runner.quit()
+
+    @allure.story("资源分配")
+    @allure.title("测试调整负载时PAUSED Worker参与分配")
+    @allure.severity(allure.severity_level.CRITICAL)
+    async def test_master_runner_adjust_load_includes_paused_worker(self):
+        """调整负载时 PAUSED Worker 应计入分配，避免 resume 后负载永久不一致（B-3）"""
+        runner = await self._make_initialized_master(8011)
+
+        # 三个Worker：两个RUNNING，一个PAUSED
+        runner.workers["worker1"] = WorkerNode("worker1")
+        runner.workers["worker1"].status = RunnerState.RUNNING
+        runner.workers["worker2"] = WorkerNode("worker2")
+        runner.workers["worker2"].status = RunnerState.PAUSED
+        runner.workers["worker3"] = WorkerNode("worker3")
+        runner.workers["worker3"].status = RunnerState.RUNNING
+
+        # 心跳检查全部存活
+        async def fake_check_worker_heartbeat(worker_id):
+            return True
+
+        runner.coordinator.check_worker_heartbeat = (
+            fake_check_worker_heartbeat)
+
+        published_commands = []
+
+        async def mock_publish(channel, data, worker_id=None, command=None):
+            published_commands.append({
+                "channel": channel,
+                "data": data,
+                "worker_id": worker_id,
+                "command": command
+            })
+
+        runner.coordinator.publish = mock_publish
+
+        # 进入 RUNNING 状态
+        await runner.state_manager.transition_state(RunnerState.STARTING)
+        await runner.state_manager.transition_state(RunnerState.RUNNING)
+
+        # 调整负载：9个用户分配给3个Worker（含PAUSED）
+        await runner.apply_load(9, 9.0)
+
+        # 三个Worker都收到启动命令（PAUSED Worker 不再被过滤）
+        assert len(published_commands) == 3
+        receiving = {cmd["worker_id"] for cmd in published_commands}
+        assert receiving == {"worker1", "worker2", "worker3"}
+
+        # 每个Worker分配3个用户
+        user_counts = [cmd["data"]["user_count"] for cmd in published_commands]
+        assert user_counts == [3, 3, 3]
+
+        # 清理资源
+        await runner.quit()
+
+    async def _make_initialized_master(self, port):
+        """构造并初始化一个使用 Mock Redis 的 MasterRunner（停止类用例共用）"""
+        class TestLoadShape:
+            def tick(self):
+                return None
+
+        class MockRedisClient(_BaseMockRedisClient):
+            pass
+
+        class MockConfig:
+            def __init__(self):
+                self.prometheus_port = port
+                self.metrics_batch_size = 100
+                self.metrics_flush_interval = 1.0
+                self.metrics_buffer_size = 10000
+
+        runner = MasterRunner(
+            [], TestLoadShape(), MockConfig(), MockRedisClient())
+        await runner.initialize()
+        return runner
+
+    @allure.story("停止")
+    @allure.title("测试MasterRunner无健康Worker时停止不卡死")
+    @allure.severity(allure.severity_level.CRITICAL)
+    async def test_master_runner_stop_no_workers(self):
+        """无健康Worker时 stop() 应直接收尾转 READY，而非永久卡在 STOPPING（N-1）"""
+        runner = await self._make_initialized_master(8021)
+
+        # 进入 RUNNING 使 can_stop 成立
+        await runner.state_manager.transition_state(RunnerState.STARTING)
+        await runner.state_manager.transition_state(RunnerState.RUNNING)
+
+        stop_events = []
+
+        async def on_stop(runner=None, **kwargs):
+            stop_events.append(runner)
+
+        await runners.test_stop.add_handler(on_stop)
+        try:
+            # workers 为空 → get_healthy_workers() 返回 []
+            await runner.stop()
+            # 零Worker兜底：应立即转 READY 并触发一次 test_stop
+            assert runner.state_manager.get_current_state() == RunnerState.READY
+            assert len(stop_events) == 1
+        finally:
+            await runners.test_stop.remove_handler(on_stop)
+            await runner.quit()
+
+    @allure.story("停止")
+    @allure.title("测试MasterRunner停止确认超时看门狗兜底")
+    @allure.severity(allure.severity_level.CRITICAL)
+    async def test_master_runner_stop_watchdog_timeout(self):
+        """Worker失联不确认时，看门狗超时后强制收尾转 READY（N-1）"""
+        runner = await self._make_initialized_master(8022)
+
+        await runner.state_manager.transition_state(RunnerState.STARTING)
+        await runner.state_manager.transition_state(RunnerState.RUNNING)
+        await runner.state_manager.transition_state(RunnerState.STOPPING)
+
+        # 模拟有一个Worker但始终不回停止确认
+        runner._stop_finalized = False
+        runner._stop_completion_tracker = {
+            "stopped_workers": set(), "total_workers": 1}
+
+        stop_events = []
+
+        async def on_stop(runner=None, **kwargs):
+            stop_events.append(runner)
+
+        await runners.test_stop.add_handler(on_stop)
+        try:
+            await runner._watch_stop_completion(timeout=0.1)
+            assert runner.state_manager.get_current_state() == RunnerState.READY
+            assert runner._stop_finalized is True
+            assert len(stop_events) == 1
+        finally:
+            await runners.test_stop.remove_handler(on_stop)
+            await runner.quit()
+
+    @allure.story("停止")
+    @allure.title("测试MasterRunner停止收尾幂等")
+    @allure.severity(allure.severity_level.NORMAL)
+    async def test_master_runner_finalize_stop_idempotent(self):
+        """_finalize_stop 多次调用只转一次状态/触发一次 test_stop（N-1）"""
+        runner = await self._make_initialized_master(8023)
+
+        await runner.state_manager.transition_state(RunnerState.STARTING)
+        await runner.state_manager.transition_state(RunnerState.RUNNING)
+        await runner.state_manager.transition_state(RunnerState.STOPPING)
+        runner._stop_finalized = False
+
+        stop_events = []
+
+        async def on_stop(runner=None, **kwargs):
+            stop_events.append(runner)
+
+        await runners.test_stop.add_handler(on_stop)
+        try:
+            await runner._finalize_stop()
+            await runner._finalize_stop()  # 第二次应早退
+            assert runner.state_manager.get_current_state() == RunnerState.READY
+            assert len(stop_events) == 1
+        finally:
+            await runners.test_stop.remove_handler(on_stop)
+            await runner.quit()
 
 
 # 测试create_prometheus_app函数

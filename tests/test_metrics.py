@@ -7,8 +7,7 @@ import allure
 import pytest
 
 from aiotest.metrics import (MetricsCollector, RequestMetrics,
-                             get_unified_collector, init_unified_collector,
-                             is_unified_collector_initialized)
+                             init_unified_collector)
 
 
 @allure.feature("RequestMetrics")
@@ -352,7 +351,7 @@ class TestGlobalFunctions:
     @allure.severity(allure.severity_level.CRITICAL)
     async def test_init_unified_collector(self):
         """测试 init_unified_collector 函数"""
-        collector = init_unified_collector(
+        collector = await init_unified_collector(
             node_type="local",
             node_id="unified-test",
             batch_size=50,
@@ -367,40 +366,29 @@ class TestGlobalFunctions:
         await collector.stop()
 
     @allure.story("初始化")
-    @allure.title("测试获取统一指标收集器")
+    @allure.title("测试重复初始化先停止旧收集器且处理器不泄漏")
     @allure.severity(allure.severity_level.NORMAL)
-    async def test_get_unified_collector(self):
-        """测试 get_unified_collector 函数"""
-        collector = init_unified_collector(
-            node_type="local",
-            node_id="get-test"
-        )
-
-        result = get_unified_collector()
-        assert result is collector
-
-        await collector.stop()
-
-    @allure.story("初始化")
-    @allure.title("测试未初始化时获取收集器抛出异常")
-    @allure.severity(allure.severity_level.NORMAL)
-    def test_get_unified_collector_not_initialized(self):
-        """测试未初始化时 get_unified_collector 抛出异常"""
+    async def test_init_replaces_old_collector(self):
+        """测试重复初始化时旧收集器被停止、事件处理器不泄漏"""
         from aiotest import metrics as metrics_module
-        metrics_module._UNIFIED_COLLECTOR = None
+        from aiotest.metrics import request_metrics
 
-        with pytest.raises(RuntimeError):
-            get_unified_collector()
+        before = len(request_metrics._handlers)
+        first = await init_unified_collector(
+            node_type="local", node_id="replace-test-1")
+        # 新收集器启动后注册了 1 个事件处理器
+        assert len(request_metrics._handlers) == before + 1
 
-    @allure.story("状态检查")
-    @allure.title("测试检查统一收集器初始化状态")
-    @allure.severity(allure.severity_level.NORMAL)
-    async def test_is_initialized(self):
-        """测试 is_unified_collector_initialized 函数"""
-        from aiotest import metrics as metrics_module
-        metrics_module._UNIFIED_COLLECTOR = None
+        second = await init_unified_collector(
+            node_type="local", node_id="replace-test-2")
 
-        assert is_unified_collector_initialized() is False
+        assert metrics_module._UNIFIED_COLLECTOR is second
+        assert first is not second
+        # 旧处理器已注销、新处理器已注册，总数不变
+        assert len(request_metrics._handlers) == before + 1
+
+        await second.stop()
+        assert len(request_metrics._handlers) == before
 
 
 @allure.feature("缓冲区处理")
@@ -452,9 +440,8 @@ class TestBufferProcessing:
     @allure.severity(allure.severity_level.NORMAL)
     async def test_unified_collector_metrics_export(self):
         """测试统一收集器的指标导出"""
-        collector = init_unified_collector(
+        collector = await init_unified_collector(
             node_type="local", node_id="export-global")
-        await collector.start()
 
         metrics = RequestMetrics(
             request_id="req-006",

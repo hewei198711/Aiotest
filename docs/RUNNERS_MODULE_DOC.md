@@ -87,7 +87,7 @@ ______________________________________________________________________
 
 **返回值**：
 
-- `Tuple[web.AppRunner, bool]`：应用运行器和启动状态
+- `web.AppRunner`：Prometheus 应用运行器（供调用方在退出时调用 `cleanup()` 释放）
 
 ## 数据类
 
@@ -221,7 +221,6 @@ def __init__(self, user_types: List[Type['User']], load_shape: Any, config: Dict
 | `_send_heartbeat()` | 发送心跳数据 | 无 | `None` | 后台任务循环 |
 | `_send_startup_completed()` | 发送启动完成确认 | 无 | `None` | 启动完成后 |
 | `_send_stop()` | 发送停止确认 | 无 | `None` | 停止完成后 |
-| `_check_quit_status()` | 检查退出状态 | 无 | `None` | 后台任务循环 |
 | `_handle_command(data, worker_id, command)` | 处理主节点命令 | `data: dict`, `worker_id: str`, `command: str` | `None` | 接收到命令时 |
 | `apply_load(user_count, rate)` | 应用负载配置 | `user_count: int`, `rate: float` | `None` | 接收到启动命令时 |
 | `quit()` | 退出工作节点 | 无 | `None` | 接收到退出命令时 |

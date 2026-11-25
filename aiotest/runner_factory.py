@@ -6,7 +6,8 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Type
 import psutil
 from redis.asyncio import Redis
 
-from aiotest.events import startup_completed, test_start, worker_request_metrics
+from aiotest.events import (startup_completed, test_quit, test_start,
+                            worker_request_metrics)
 from aiotest.exception import InvalidRateError, InvalidUserCountError
 from aiotest.load_shape_manager import LoadShapeManager
 from aiotest.logger import logger
@@ -43,7 +44,7 @@ def validate_load_params(user_count: int, rate: float) -> None:
 
     if rate <= 0 or rate > user_count:
         raise InvalidRateError(
-            f"速率必须在 0 和 {user_count} 之间，当前值: {rate}")
+            f"速率必须大于 0 且不超过 {user_count}，当前值: {rate}")
 
     # 速率过高警告
     if rate > 100:
@@ -68,32 +69,24 @@ def validate_params(func):
     return wrapper
 
 
-class EventHandlerRegistry:
-    """事件处理器注册中心"""
+async def register_event_handlers(runner) -> None:
+    """
+    根据运行器节点类型注册相应的事件处理器。
 
-    def __init__(self):
-        self._registered_handlers = set()
+    重复注册由事件系统自身去重（add_handler 按对象身份比较），
+    无需在此维护独立的注册集合。
+    """
+    # 注册通用事件处理器（仅非Worker节点）
+    if not hasattr(runner, 'node') or runner.node != NODE_TYPE_WORKER:
+        await startup_completed.add_handler(on_startup_completed)
 
-    async def register_handlers(self, runner):
-        """根据运行器类型注册相应的事件处理器"""
-        runner_key = id(runner)
+    # 仅Master节点需要注册worker相关事件处理器，用于收集Worker上报的指标
+    if hasattr(runner, 'node') and runner.node == NODE_TYPE_MASTER:
+        await worker_request_metrics.add_handler(on_worker_request_metrics)
 
-        if runner_key in self._registered_handlers:
-            return  # 避免重复注册
-
-        # 注册通用事件处理器（仅非Worker节点）
-        if not hasattr(runner, 'node') or runner.node != NODE_TYPE_WORKER:
-            await startup_completed.add_handler(on_startup_completed)
-
-        # 仅Master节点需要注册worker相关事件处理器，用于收集Worker上报的指标
-        if hasattr(runner, 'node') and runner.node == NODE_TYPE_MASTER:
-            await worker_request_metrics.add_handler(on_worker_request_metrics)
-
-        self._registered_handlers.add(runner_key)
-        logger.debug(
-            "已为 %s 运行器 %s 注册事件处理器",
-            getattr(runner, 'node', 'unknown'),
-            runner_key)
+    logger.debug(
+        "已为 %s 节点注册事件处理器",
+        getattr(runner, 'node', 'unknown'))
 
 
 class RunnerFactory:
@@ -142,9 +135,8 @@ class RunnerFactory:
         # 初始化运行器
         await runner.initialize()
 
-        # 注册事件处理器
-        registry = EventHandlerRegistry()
-        await registry.register_handlers(runner)
+        # 注册事件处理器（去重由事件系统自身保证）
+        await register_event_handlers(runner)
 
         logger.info("已创建并初始化 %s 运行器", runner_type)
         return runner
@@ -259,8 +251,9 @@ class BaseRunner:
         if self._load_shape_manager:
             await self._load_shape_manager.stop()
 
+        # 退出真相是 is_quit 标志：set_quit_state() 置位后
+        # transition_state 会因 is_quit 早退而失效，无需再转换状态
         self.state_manager.set_quit_state()
-        await self.state_manager.transition_state(RunnerState.QUITTING)
 
         try:
             # 停止所有用户
@@ -268,6 +261,23 @@ class BaseRunner:
 
             # 取消所有后台任务
             await self.task_manager.cancel_all_tasks()
+
+            # 停止指标收集器并关闭 Prometheus 服务：Local/Worker 的 CLI 退出
+            # 路径走此 quit()（而非各自 stop()），此前遗漏导致事件处理器/HTTP
+            # 服务/flush 任务泄漏。用 getattr 防御：BaseRunner 无这些属性，
+            # Worker 无 prometheus_runner，均应跳过
+            metrics_collector = getattr(self, 'metrics_collector', None)
+            if metrics_collector:
+                await metrics_collector.stop()
+
+            prometheus_runner = getattr(self, 'prometheus_runner', None)
+            if prometheus_runner:
+                await prometheus_runner.cleanup()
+                self.prometheus_runner = None
+                self.prometheus_server_started = False
+
+            # 触发测试退出事件（quit 入口有 is_quit 早退保护，不会重复触发）
+            await test_quit.fire(runner=self)
 
             logger.info("%s 已成功退出", self.__class__.__name__)
         except Exception as e:
@@ -350,7 +360,9 @@ class BaseRunner:
         """
         while not self.state_manager.is_in_quit_state():
             try:
-                self.cpu_usage = psutil.cpu_percent(interval=1)
+                # 使用非阻塞模式（interval=None），返回自上次调用以来的CPU使用率。
+                # interval=1 会同步阻塞事件循环1秒，严重干扰压测请求与延迟测量。
+                self.cpu_usage = psutil.cpu_percent(interval=None)
 
                 # 性能预警
                 if self.cpu_usage > 90:

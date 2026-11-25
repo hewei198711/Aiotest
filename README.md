@@ -403,7 +403,6 @@ class TestUser(HttpUser):
 aiotest -f test.py                    # 指定测试文件
 aiotest -H https://api.example.com    # 指定目标主机
 aiotest --loglevel DEBUG              # 设置日志级别
-aiotest --logfile test.log            # 设置日志文件
 
 # 分布式参数
 --master                              # 启动 Master 节点

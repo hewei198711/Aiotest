@@ -57,7 +57,7 @@ def __init__(self)
 | `add_tasks(tasks)` | 批量添加后台任务 | `tasks: List[asyncio.Task]` | `None` | 需要批量添加任务时 |
 | `create_task(coro, name=None)` | 创建并添加后台任务 | `coro: Coroutine`, `name: str` | `asyncio.Task` | 需要创建新任务时 |
 | `cancel_all_tasks()` | 取消所有后台任务 | 无 | `None` | 需要停止所有任务时 |
-| `get_task_by_name(name)` | 根据名称获取任务 | `name: str` | `asyncio.Task` | 需要查询特定任务时 |
+| `get_task_by_name(name)` | 根据名称获取任务（未找到返回None） | `name: str` | `Optional[asyncio.Task]` | 需要查询特定任务时 |
 | `remove_task(task)` | 移除任务 | `task: asyncio.Task` | `None` | 需要移除任务时 |
 | `clear_completed_tasks()` | 清理已完成的任务 | 无 | `None` | 需要清理已完成任务时 |
 | `get_active_task_count()` | 获取活跃任务数量 | 无 | `int` | 需要监控任务状态时 |

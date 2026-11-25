@@ -13,11 +13,8 @@ AioTest性能指标模块
 - 分布式节点支持
 
 使用示例：
-    # 初始化指标收集器
-    collector = init_unified_collector("local", node_id="worker1")
-
-    # 启动指标收集器（在异步上下文中）
-    await collector.start()
+    # 初始化并启动指标收集器（在异步上下文中）
+    collector = await init_unified_collector("local", node_id="worker1")
 
     # 触发请求指标事件
     await request_metrics.fire(metrics=request_data)
@@ -35,10 +32,7 @@ AioTest性能指标模块
 """
 
 import asyncio
-import json
 import time
-import zlib
-import base64
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
@@ -50,6 +44,7 @@ from prometheus_client import (
     generate_latest,
 )
 
+from aiotest.distributed_coordinator import compress_data
 from aiotest.events import request_metrics
 from aiotest.logger import logger
 
@@ -167,6 +162,9 @@ class MetricsCollector:
 
     async def stop(self):
         """停止指标收集器"""
+        # 注销事件处理器，避免停止后仍接收请求指标事件
+        await request_metrics.remove_handler(self.process_request_metrics)
+
         # 停止定期刷新任务
         if self._flush_task:
             self._flush_task.cancel()
@@ -385,30 +383,15 @@ class MetricsCollector:
                 self._metrics_buffer.append(metrics_dict)
                 logger.warning("指标缓冲区已满，丢弃最旧的指标")
 
-    def _compress_data(self, data: Any) -> str:
-        """
-        压缩数据
-
-        参数：
-            data: 要压缩的数据
-
-        返回：
-            str: 压缩后的base64编码字符串
-        """
-
-        json_str = json.dumps(data, ensure_ascii=False)
-        compressed = zlib.compress(json_str.encode('utf-8'))
-        return base64.b64encode(compressed).decode('utf-8')
-
     async def _forward_batch_to_redis(
             self, batch: List[Dict[str, Any]]) -> None:
         """批量转发数据到 Redis"""
         if not self.coordinator:
             return
 
-        # 压缩数据以减少传输量
-        compressed_batch = self._compress_data(batch)
-        
+        # 压缩数据以减少传输量（公共压缩函数，与分布式协调器解压端配对）
+        compressed_batch = compress_data(batch)
+
         # 批量发布请求数据
         await self.coordinator.publish("request_metrics", compressed_batch, worker_id=self.node_id, compressed=True)
 
@@ -425,20 +408,21 @@ class MetricsCollector:
 _UNIFIED_COLLECTOR: Optional[MetricsCollector] = None
 
 
-def get_unified_collector() -> MetricsCollector:
-    """获取统一的指标收集器实例"""
-    global _UNIFIED_COLLECTOR
-    if _UNIFIED_COLLECTOR is None:
-        raise RuntimeError("统一的指标收集器未初始化。"
-                           "请在运行器中初始化它。")
-    return _UNIFIED_COLLECTOR
+async def init_unified_collector(node_type: str = "local", redis_client=None, node_id: str = "local",
+                                 coordinator=None, batch_size: int = 100, flush_interval: float = 1.0,
+                                 buffer_size: int = 10000) -> MetricsCollector:
+    """
+    初始化并启动统一的指标收集器
 
-
-def init_unified_collector(node_type: str = "local", redis_client=None, node_id: str = "local",
-                           coordinator=None, batch_size: int = 100, flush_interval: float = 1.0,
-                           buffer_size: int = 10000) -> MetricsCollector:
-    """初始化统一的指标收集器"""
+    同进程重复调用会先停止旧实例（注销其挂在全局 request_metrics
+    事件上的处理器），再创建新实例，避免旧处理器泄漏。
+    """
     global _UNIFIED_COLLECTOR
+    if _UNIFIED_COLLECTOR is not None:
+        logger.warning(
+            "统一指标收集器已存在（节点ID: %s），先停止旧实例再覆盖",
+            _UNIFIED_COLLECTOR.node_id)
+        await _UNIFIED_COLLECTOR.stop()
     _UNIFIED_COLLECTOR = MetricsCollector(
         node_type,
         redis_client,
@@ -448,10 +432,5 @@ def init_unified_collector(node_type: str = "local", redis_client=None, node_id:
         flush_interval=flush_interval,
         buffer_size=buffer_size
     )
+    await _UNIFIED_COLLECTOR.start()
     return _UNIFIED_COLLECTOR
-
-
-def is_unified_collector_initialized() -> bool:
-    """检查统一指标收集器是否已初始化"""
-    global _UNIFIED_COLLECTOR
-    return _UNIFIED_COLLECTOR is not None

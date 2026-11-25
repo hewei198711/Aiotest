@@ -4,7 +4,6 @@ import argparse
 import inspect
 import os
 import sys
-from functools import lru_cache
 from typing import Dict, Optional, Tuple, Type
 
 import importlib.metadata
@@ -88,7 +87,7 @@ def parse_options(args=None):
     group_redis.add_argument(
         '--redis-password',
         default=None,
-        help="Redis服务器密码（建议通过环境变量 AIOTEST_REDIS_PASSWORD 设置）"
+        help="Redis服务器密码"
     )
 
     # 分布式参数
@@ -111,18 +110,12 @@ def parse_options(args=None):
         help="主节点在开始测试前期望连接的工作节点数量"
     )
 
-    # loglevel logfile
+    # loglevel
     group_logging.add_argument(
         '--loglevel', '-L',
         default='INFO',
         choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'],
         help="日志级别 (DEBUG/INFO/WARNING/ERROR/CRITICAL, 默认=INFO)",
-    )
-
-    group_logging.add_argument(
-        '--logfile',
-        default=None,
-        help="日志文件路径。如果未设置，日志将输出到stdout/stderr",
     )
 
     group_prometheus.add_argument(
@@ -188,7 +181,7 @@ def validate_file_exists(file_path, file_type):
     验证文件是否存在
 
     功能：
-        - 检查文件是否存在
+        - 检查文件路径非空且文件确实存在
         - 如果不存在，记录错误并退出
 
     参数：
@@ -201,10 +194,11 @@ def validate_file_exists(file_path, file_type):
     if not file_path:
         handle_error_and_exit(
             f"未找到任何 {file_type}！确保文件以'.py'结尾并查看--help获取可用选项。")
+    if not os.path.exists(file_path):
+        handle_error_and_exit(f"{file_type} 文件不存在: {file_path}")
     return True
 
 
-@lru_cache(maxsize=32)
 def find_aiotestfile(aiotestfile):
     """
     查找并验证aiotest测试文件路径。
@@ -356,6 +350,11 @@ def load_aiotestfile(
     # 分离目录和文件名
     directory, aiotestfile = os.path.split(path)
     module_name = os.path.splitext(aiotestfile)[0]
+
+    # 将测试文件所在目录加入 sys.path，
+    # 使测试文件可以 import 同目录下的其他模块
+    if directory not in sys.path:
+        sys.path.insert(0, directory)
 
     try:
         # 使用 importlib.util 直接从文件路径导入模块

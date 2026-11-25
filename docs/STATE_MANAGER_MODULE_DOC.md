@@ -70,7 +70,6 @@ ______________________________________________________________________
 | `PAUSED` | `"paused"` | 暂停中 |
 | `MISSING` | `"missing"` | 丢失（仅用于工作节点） |
 | `STOPPING` | `"stopping"` | 停止中 |
-| `QUITTING` | `"quitting"` | 退出中 |
 
 #### 方法说明
 
@@ -133,16 +132,16 @@ def __init__(self)
 1. **READY**→**STARTING**→**RUNNING**
 1. **RUNNING**→**STOPPING**→**READY**
 
-#### 紧急停止流程
+#### 退出流程
 
-1. **READY**→**QUITTING**
-1. **STARTING**→**QUITTING**
-1. **RUNNING**→**QUITTING**
-1. **STOPPING**→**QUITTING**
+框架内退出（`quit()`）不走状态机：通过 `set_quit_state()` 置位
+`is_quit` 标志完成，此后状态机冻结、不再流转，当前状态保持冻结值；
+所有退出判断应使用 `is_in_quit_state()`。
 
 #### 节点丢失流程（仅用于工作节点）
 
-1. **MISSING**→**QUITTING**
+1. Master 检测到 Worker 心跳失联后，直接将 WorkerNode.status 标记为 **MISSING**（不经过 transition_state）
+1. 宽限期（60 秒）后仍未恢复的 Worker 被移除
 
 ## 流程图
 
@@ -178,13 +177,6 @@ stateDiagram-v2
     PAUSED --> STOPPING
     RUNNING --> STOPPING
     STOPPING --> READY
-    READY --> QUITTING
-    STARTING --> QUITTING
-    RUNNING --> QUITTING
-    PAUSED --> QUITTING
-    STOPPING --> QUITTING
-    MISSING --> QUITTING
-    QUITTING --> [*]
 
 ```
 
@@ -193,13 +185,12 @@ stateDiagram-v2
 ```mermaid
 
 flowchart TD
-    A[READY] -->| 可以转换到 |B[STARTING, QUITTING]
-    C[STARTING] -->| 可以转换到 |D[RUNNING, STOPPING, QUITTING]
-    E[RUNNING] -->| 可以转换到 |F[STOPPING, PAUSED, QUITTING]
-    P[PAUSED] -->| 可以转换到 |Q[RUNNING, STOPPING, QUITTING]
-    G[MISSING] -->| 可以转换到 |H[QUITTING]
-    I[STOPPING] -->| 可以转换到 |J[READY, QUITTING]
-    K[QUITTING] -->| 不能转换到 |L[任何状态]
+    A[READY] -->| 可以转换到 |B[STARTING]
+    C[STARTING] -->| 可以转换到 |D[RUNNING, STOPPING]
+    E[RUNNING] -->| 可以转换到 |F[STOPPING, PAUSED]
+    P[PAUSED] -->| 可以转换到 |Q[RUNNING, STOPPING]
+    G[MISSING] -->| 不能转换到 |H[任何状态]
+    I[STOPPING] -->| 可以转换到 |J[READY]
 
 ```
 
@@ -273,10 +264,10 @@ async def full_transition_example():
     await manager.transition_state(RunnerState.READY)
     print(f"Ready: {manager.get_current_state()}")
 
-    print("\n=== 紧急停止流程 ===")
-    # READY -> QUITTING
-    await manager.transition_state(RunnerState.QUITTING)
-    print(f"Quitting: {manager.get_current_state()}")
+    print("\n=== 退出流程 ===")
+    # 退出不走状态机：置位 is_quit 标志即可
+    manager.set_quit_state()
+    print(f"Is in quit state: {manager.is_in_quit_state()}")
 
 # 执行示例
 
@@ -342,8 +333,7 @@ async def quit_state_example():
     await manager.transition_state(RunnerState.STOPPING)
     print(f"State after trying to stop: {manager.get_current_state()}")
 
-    # 转换到 QUITTING
-    await manager.transition_state(RunnerState.QUITTING)
+    # 退出状态下状态机已冻结，当前状态保持不变
     print(f"Final state: {manager.get_current_state()}")
 
 # 执行示例

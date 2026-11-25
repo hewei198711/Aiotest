@@ -16,8 +16,23 @@ from aiotest.logger import logger
 HEARTBEAT_INTERVAL = 1.0  # 心跳监控时间间隔(秒)
 HEARTBEAT_LIVENESS = 5    # 心跳存活检查次数
 
-# 批量传输相关常量
-MAX_BATCH_SIZE = 1000     # 最大批量大小，防止消息过大
+
+def compress_data(data: Any) -> str:
+    """压缩数据为 base64 字符串（与 decompress_data 配对使用）"""
+    json_str = json.dumps(data, ensure_ascii=False)
+    compressed = zlib.compress(json_str.encode('utf-8'))
+    return base64.b64encode(compressed).decode('utf-8')
+
+
+def decompress_data(data_str: str) -> Any:
+    """解压 compress_data 生成的 base64 字符串"""
+    decoded_data = base64.b64decode(data_str)
+    decompressed_data = zlib.decompress(decoded_data)
+    return json.loads(decompressed_data.decode('utf-8'))
+
+# 监听器重连间隔(秒)：Redis 连接断开后，pubsub 不会自动重连，
+# 监听循环需主动重建连接与订阅，否则命令/指标通道将永久失效
+RETRY_DELAY = 1.0
 
 
 class RedisConnection:
@@ -238,7 +253,9 @@ class DistributedLock:
         return False
 
     async def __aenter__(self):
-        await self.acquire()
+        # with_lock 已提前获取锁时跳过，避免重复加锁
+        if not self.locked:
+            await self.acquire()
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
@@ -264,21 +281,8 @@ class DistributedLock:
         lock = DistributedLock(redis, lock_key, timeout, wait_timeout)
         await lock.acquire()
 
-        # 返回一个不会重复 acquire 的上下文管理器
-        return DistributedLock._LockContext(lock)
-
-    class _LockContext:
-        """内部上下文管理器，用于 with_lock 方法"""
-
-        def __init__(self, lock: 'DistributedLock'):
-            self.lock = lock
-
-        async def __aenter__(self):
-            return self.lock
-
-        async def __aexit__(self, exc_type, exc_val, exc_tb):
-            # 参数必须保留，即使不使用（异步上下文管理器协议要求）
-            await self.lock.release()
+        # __aenter__ 对已持有的锁幂等，直接返回锁本身
+        return lock
 
 
 class DistributedCoordinator:
@@ -396,14 +400,14 @@ class DistributedCoordinator:
 
             # 检查是否为压缩数据
             compressed = kwargs.get('compressed', False)
-            
+
             batch_dict = {
                 'batch': data,
                 'worker_id': worker_id,
                 'timestamp': asyncio.get_running_loop().time(),
                 'compressed': compressed
             }
-            
+
             # 发送数据
             payload_json = json.dumps(batch_dict)
             await self.redis.publish("aiotest:metrics", payload_json)
@@ -493,10 +497,17 @@ class DistributedCoordinator:
                         heartbeat_data = await self.redis.hgetall(key)
 
                         if heartbeat_data:
+                            # 过滤时间戳字段：timestamp 每轮心跳都会刷新，
+                            # 直接比较整个字典会导致状态永远"变化"、每轮全量回调
+                            stable_data = {
+                                k: v for k, v in heartbeat_data.items()
+                                if k != "timestamp"
+                            }
                             # 检查状态是否发生变化
-                            if worker_id not in worker_status or worker_status[worker_id] != heartbeat_data:
+                            if (worker_id not in worker_status
+                                    or worker_status[worker_id] != stable_data):
                                 is_new = worker_id not in worker_status
-                                worker_status[worker_id] = heartbeat_data
+                                worker_status[worker_id] = stable_data
                                 if is_new:
                                     logger.info("检测到新Worker上线: %s, cpu=%.1f%%, active_users=%s",
                                                 worker_id,
@@ -531,173 +542,205 @@ class DistributedCoordinator:
         参数：
             callback: 可选的回调函数，格式为 async def callback(metrics_data: dict, worker_id: str)
                       如果不提供，数据将只通过事件系统处理
+
+        容错：
+            Redis 连接断开时 pubsub 不会自动重连，且 get_message 会持续
+            抛错造成无效空转；外层循环在连接错误后重建 pubsub 并重新订阅。
         """
-        request_pubsub = None
-        try:
-            request_pubsub = self.redis.pubsub()
+        while True:
+            request_pubsub = None
+            try:
+                request_pubsub = self.redis.pubsub()
 
-            # 订阅请求数据channel
-            await request_pubsub.subscribe("aiotest:metrics")
-            logger.info(
-                "%s 开始从 Redis 监听请求指标", self.role)
+                # 订阅请求数据channel
+                await request_pubsub.subscribe("aiotest:metrics")
+                logger.info(
+                    "%s 开始从 Redis 监听请求指标", self.role)
 
-            while True:  # 持续监听，由外部控制停止
-                try:
-                    # 获取请求数据消息
-                    request_message = await request_pubsub.get_message(timeout=1.0)
+                while True:  # 持续监听，由外部控制停止
+                    try:
+                        # 获取请求数据消息
+                        request_message = await request_pubsub.get_message(timeout=1.0)
 
-                    # 处理请求数据
-                    if request_message and request_message['type'] == 'message':
-                        try:
-                            message_data = json.loads(request_message['data'])
+                        # 处理请求数据
+                        if request_message and request_message['type'] == 'message':
+                            try:
+                                message_data = json.loads(request_message['data'])
 
-                            # 处理批量数据
-                            batch = message_data.get('batch', [])
-                            worker_id = message_data.get(
-                                'worker_id', 'unknown')
-                            compressed = message_data.get('compressed', False)
+                                # 处理批量数据
+                                batch = message_data.get('batch', [])
+                                worker_id = message_data.get(
+                                    'worker_id', 'unknown')
+                                compressed = message_data.get('compressed', False)
 
-                            # 解压缩数据
-                            if compressed:
-                                try:
-                                    # 解压缩数据
-                                    compressed_data = batch
-                                    decoded_data = base64.b64decode(compressed_data)
-                                    decompressed_data = zlib.decompress(decoded_data)
-                                    batch = json.loads(decompressed_data.decode('utf-8'))
-                                    logger.debug("请求指标已解压缩: worker_id=%s, batch_count=%d",
-                                                 worker_id, len(batch) if isinstance(batch, list) else 1)
-                                except Exception as e:
-                                    logger.warning("解压缩指标数据失败: %s", str(e))
-                                    continue
+                                # 解压缩数据
+                                if compressed:
+                                    try:
+                                        batch = decompress_data(batch)
+                                        logger.debug("请求指标已解压缩: worker_id=%s, batch_count=%d",
+                                                     worker_id, len(batch) if isinstance(batch, list) else 1)
+                                    except Exception as e:
+                                        logger.warning("解压缩指标数据失败: %s", str(e))
+                                        continue
 
-                            batch_count = len(batch) if isinstance(batch, list) else 1
-                            logger.debug("收到请求指标: worker_id=%s, batch_count=%d, compressed=%s",
-                                         worker_id, batch_count, compressed)
+                                batch_count = len(batch) if isinstance(batch, list) else 1
+                                logger.debug("收到请求指标: worker_id=%s, batch_count=%d, compressed=%s",
+                                             worker_id, batch_count, compressed)
 
-                            # 遍历批量数据并调用回调
-                            for metrics_data in batch:
-                                if callback:
-                                    await callback(metrics_data, worker_id)
+                                # 遍历批量数据并调用回调
+                                for metrics_data in batch:
+                                    if callback:
+                                        await callback(metrics_data, worker_id)
 
-                        except (json.JSONDecodeError, KeyError, Exception) as e:
-                            if isinstance(e, (json.JSONDecodeError, KeyError)):
-                                logger.warning(
-                                    "从 Redis 解析请求指标失败: %s",
-                                    str(e))
-                            else:
-                                logger.warning(
-                                    "处理请求指标回调失败: %s",
-                                    str(e))
+                            except Exception as e:
+                                if isinstance(e, (json.JSONDecodeError, KeyError)):
+                                    logger.warning(
+                                        "从 Redis 解析请求指标失败: %s",
+                                        str(e))
+                                else:
+                                    logger.warning(
+                                        "处理请求指标回调失败: %s",
+                                        str(e))
 
-                except asyncio.CancelledError:
-                    raise
-                except Exception as e:
-                    logger.warning("Redis消息处理错误: %s", str(e))
-                    await asyncio.sleep(0.1)
+                    except asyncio.CancelledError:
+                        raise
+                    except Exception as e:
+                        # 连接级错误：get_message 在连接断开后会持续抛错，
+                        # 退出内层循环重建 pubsub 连接，避免无效空转与日志风暴
+                        logger.warning(
+                            "Redis消息处理错误: %s，将重建监听连接", str(e))
+                        break
 
-        except asyncio.CancelledError:
-            logger.info("请求指标监听器已停止")
-            raise
-        except Exception as e:
-            logger.error("Redis请求指标监听器失败: %s", str(e))
-        finally:
-            # 清理pubsub连接
-            if request_pubsub:
-                try:
-                    await request_pubsub.unsubscribe("aiotest:metrics")
-                    await request_pubsub.close()
-                except Exception as e:
-                    logger.warning(
-                        "清理请求指标 pubsub 时出错: %s",
-                        str(e))
-            logger.info("Redis请求指标监听器已停止")
+            except asyncio.CancelledError:
+                logger.info("请求指标监听器已停止")
+                raise
+            except Exception as e:
+                logger.error(
+                    "Redis请求指标监听器失败: %s，%.1f 秒后重连",
+                    str(e), RETRY_DELAY)
+            finally:
+                # 清理pubsub连接
+                if request_pubsub:
+                    try:
+                        await request_pubsub.unsubscribe("aiotest:metrics")
+                        await request_pubsub.close()
+                    except Exception as e:
+                        logger.warning(
+                            "清理请求指标 pubsub 时出错: %s",
+                            str(e))
 
-    async def listen_commands(self, command_handler):
+            await asyncio.sleep(RETRY_DELAY)
+
+    async def listen_commands(self, command_handler, ready_event: asyncio.Event = None):
         """
         统一的命令监听器
 
         参数：
             command_handler: 命令处理函数，格式为 async def handler(data: dict, worker_id: str, command: str)
+            ready_event: 可选的事件对象，订阅成功后设置，用于通知调用方命令监听已就绪
+
+        容错：
+            Redis 连接断开时 pubsub 不会自动重连，此处的外层循环会在
+            连接错误后重建 pubsub 并重新订阅，避免命令通道永久失效。
         """
-        pubsub = None
-        try:
-            pubsub = self.redis.pubsub()
-            await pubsub.subscribe(self.subscribe_channel)
-            logger.info(
-                "%s 开始在 %s 上监听命令", self.role, self.subscribe_channel)
-
-            # 持续监听，直到收到quit命令或任务被取消
+        while True:
+            pubsub = None
+            exit_loop = False
             try:
-                # 获取消息，使用async for循环来监听，这样更可靠
-                async for message in pubsub.listen():
-                    if message["type"] == "message":
-                        try:
-                            data = json.loads(message["data"])
-                            command = data.get("command")
-                            command_data = data.get("data")
-                            worker_id = data.get("worker_id")
+                pubsub = self.redis.pubsub()
+                await pubsub.subscribe(self.subscribe_channel)
 
-                            logger.info(
-                                "收到命令: %s, 数据: %s, worker_id: %s",
-                                command, command_data, worker_id)
+                # 订阅完成，通知调用方命令监听器已就绪
+                if ready_event:
+                    ready_event.set()
 
-                            # 只处理发给当前节点的命令（如果有worker_id过滤）
-                            # Master节点接收所有Worker节点的命令，Worker节点只接收发给自己的命令
-                            if self.role == "worker" and worker_id and hasattr(
-                                    self, 'node_id') and worker_id != self.node_id:
+                logger.info(
+                    "%s 开始在 %s 上监听命令", self.role, self.subscribe_channel)
+
+                # 持续监听，直到收到quit命令或任务被取消
+                try:
+                    # 获取消息，使用async for循环来监听，这样更可靠
+                    async for message in pubsub.listen():
+                        if message["type"] == "message":
+                            try:
+                                data = json.loads(message["data"])
+                                command = data.get("command")
+                                command_data = data.get("data")
+                                worker_id = data.get("worker_id")
+
                                 logger.info(
-                                    "命令不是发给当前worker，跳过。worker_id: %s, self.node_id: %s",
-                                    worker_id, self.node_id)
+                                    "收到命令: %s, 数据: %s, worker_id: %s",
+                                    command, command_data, worker_id)
+
+                                # 只处理发给当前节点的命令（如果有worker_id过滤）
+                                # Master节点接收所有Worker节点的命令，Worker节点只接收发给自己的命令
+                                if self.role == "worker" and worker_id and worker_id != self.node_id:
+                                    logger.info(
+                                        "命令不是发给当前worker，跳过。worker_id: %s, self.node_id: %s",
+                                        worker_id, self.node_id)
+                                    continue
+
+                                # 调用统一的命令处理器
+                                logger.info("正在处理命令: %s", command)
+                                await command_handler(command_data, worker_id, command)
+
+                                # 如果是quit命令，退出循环
+                                if command == "quit":
+                                    logger.info(
+                                        "收到退出命令，退出命令监听器")
+                                    exit_loop = True
+                                    break
+
+                            except json.JSONDecodeError:
+                                logger.warning(
+                                    "解析命令消息失败: %s", message)
                                 continue
+                            except Exception as e:
+                                logger.error(
+                                    "处理命令消息错误: %s", e)
+                                continue
+                        elif message["type"] == "subscribe":
+                            # Redis 服务器确认订阅成功
+                            logger.info(
+                                "已订阅频道: %s",
+                                message['channel'])
+                        elif message["type"] == "unsubscribe":
+                            # Redis 服务器确认取消订阅成功
+                            logger.info(
+                                "已取消订阅频道: %s",
+                                message['channel'])
+                            exit_loop = True
+                            break
 
-                            # 调用统一的命令处理器
-                            logger.info("正在处理命令: %s", command)
-                            await command_handler(command_data, worker_id, command)
+                except asyncio.CancelledError:
+                    logger.info("命令监听器任务已取消")
+                    raise
+                # 其他异常（如连接断开）交由外层统一处理重连
 
-                            # 如果是quit命令，退出循环
-                            if command == "quit":
-                                logger.info(
-                                    "收到退出命令，退出命令监听器")
-                                break
+                if exit_loop:
+                    break
 
-                        except json.JSONDecodeError:
-                            logger.warning(
-                                "解析命令消息失败: %s", message)
-                            continue
-                        except Exception as e:
-                            logger.error(
-                                "处理命令消息错误: %s", e)
-                            continue
-                    elif message["type"] == "subscribe":
-                        # Redis 服务器确认订阅成功
-                        logger.info(
-                            "已订阅频道: %s",
-                            message['channel'])
-                    elif message["type"] == "unsubscribe":
-                        # Redis 服务器确认取消订阅成功
-                        logger.info(
-                            "已取消订阅频道: %s",
-                            message['channel'])
-                        break
+                # async for 意外结束（如连接被远端关闭），同样走重连
+                logger.warning("命令监听迭代器意外结束，将重建连接")
 
             except asyncio.CancelledError:
                 logger.info("命令监听器任务已取消")
                 raise
             except Exception as e:
-                logger.error("命令监听器错误: %s", str(e))
-                # 出错后，等待一段时间再继续监听
-                await asyncio.sleep(1.0)
+                logger.error(
+                    "命令监听器错误: %s，%.1f 秒后重连", str(e), RETRY_DELAY)
+            finally:
+                if pubsub:
+                    try:
+                        await pubsub.unsubscribe(self.subscribe_channel)
+                        await pubsub.close()
+                    except Exception as e:
+                        logger.warning(
+                            "清理命令 pubsub 时出错: %s",
+                            str(e))
 
-        except Exception as e:
-            logger.error("命令监听器错误: %s", str(e))
-        finally:
-            if pubsub:
-                try:
-                    await pubsub.unsubscribe(self.subscribe_channel)
-                    await pubsub.close()
-                except Exception as e:
-                    logger.warning(
-                        "清理命令 pubsub 时出错: %s",
-                        str(e))
-            logger.info("命令监听器已停止")
+            if exit_loop:
+                break
+            await asyncio.sleep(RETRY_DELAY)
+
+        logger.info("命令监听器已停止")

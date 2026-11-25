@@ -84,31 +84,31 @@ ______________________________________________________________________
 - 在函数执行前自动调用 `validate_load_params` 进行参数验证
 - 简化参数验证逻辑，避免重复代码
 
-## 事件处理器注册类
+## 事件处理器注册函数
 
-### `EventHandlerRegistry` 类
-
-#### 初始化方法
+### `register_event_handlers` 函数
 
 ```python
-def __init__(self)
+async def register_event_handlers(runner) -> None
 ```
 
-**作用**：初始化事件处理器注册中心
+**作用**：根据运行器节点类型注册相应的事件处理器
+
+> 重复注册由事件系统自身去重（add_handler 按对象身份比较），
+> 无需维护独立的注册集合。
 
 **参数说明**：
 
-- 无参数
+- `runner`：待注册事件处理器的运行器实例
 
-**属性**：
+**注册规则**：
 
-- `_registered_handlers (set)`：已注册处理器的运行器 ID 集合
+- 非 Worker 节点（local/master）：注册 `on_startup_completed` 到 `startup_completed` 事件
+- Master 节点：额外注册 `on_worker_request_metrics` 到 `worker_request_metrics` 事件
+- Worker 节点：均不注册
 
-##### 方法说明
+**调用时机**：`RunnerFactory.create()` 初始化运行器后
 
-| 方法名 | 作用 | 参数 | 返回值 | 调用时机 |
-| ----- | ---- | ---- | ----- | ------- |
-| `register_handlers(runner)` | 根据运行器类型注册相应的事件处理器 | `runner: Any` | `None` | 创建运行器时 |
 
 ## 运行器工厂类
 
@@ -217,7 +217,7 @@ def __init__(self, user_types: List[Type['User']], load_shape: Any, config: Dict
 1. **延迟导入** → 根据运行器类型延迟导入相应的运行器类
 1. **创建运行器实例** → 实例化相应的运行器类
 1. **初始化运行器** → 调用运行器的 `initialize()` 方法
-1. **注册事件处理器** → 使用 `EventHandlerRegistry` 注册事件处理器
+1. **注册事件处理器** → 调用 `register_event_handlers()` 注册事件处理器
 1. **返回运行器** → 返回初始化完成的运行器实例
 
 ### 负载应用流程
@@ -235,8 +235,7 @@ def __init__(self, user_types: List[Type['User']], load_shape: Any, config: Dict
 1. **调用 quit** → 调用运行器的 `quit()` 方法
 1. **检查退出状态** → 如果已处于退出状态，直接返回
 1. **停止负载形状管理器** → 停止负载形状管理器
-1. **设置退出状态** → 设置退出状态标记
-1. **转换到退出状态** → 转换到 QUITTING 状态
+1. **设置退出状态** → 置位退出状态标记（is_quit，状态机冻结不再流转）
 1. **停止所有用户** → 停止所有活跃用户
 1. **取消后台任务** → 取消所有后台任务
 1. **记录日志** → 记录退出成功日志
@@ -293,10 +292,9 @@ flowchart TD
     A[调用quit] --> B{已退出?}
     B -->|是| C[直接返回]
     B -->|否| D[停止负载形状管理器]
-    D --> E[设置退出状态]
-    E --> F[转换到QUITTING状态]
-    F --> G[停止所有用户]
-    G --> H[取消后台任务]
+    D --> E[设置退出状态标记is_quit]
+    E --> F[停止所有用户]
+    F --> G[取消后台任务]
     H --> I{成功?}
     I -->|是| J[记录成功日志]
     I -->|否| K[记录错误日志]

@@ -11,6 +11,7 @@ from prometheus_client import generate_latest
 from aiotest.distributed_coordinator import HEARTBEAT_INTERVAL, DistributedCoordinator
 from aiotest.events import (
     startup_completed,
+    test_quit,
     test_start,
     test_stop,
     worker_request_metrics,
@@ -26,6 +27,7 @@ from aiotest.runner_factory import (
     BaseRunner,
 )
 from aiotest.state_manager import RunnerState
+from aiotest.task_manager import TaskManager
 
 # =============================================================================
 # 辅助函数
@@ -71,20 +73,23 @@ def create_prometheus_app(runner=None):
             logger.error("控制请求处理错误: %s", str(e))
             return web.Response(body=b'Internal Server Error', status=500)
 
+    # HTML 内容在创建应用时读取一次并缓存，
+    # 避免每次请求都同步执行文件 I/O 阻塞事件循环
+    import os
+    static_dir = os.path.join(os.path.dirname(__file__), 'static')
+    html_path = os.path.join(static_dir, 'index.html')
+    html_content = None
+    try:
+        with open(html_path, 'r', encoding='utf-8') as f:
+            html_content = f.read()
+    except Exception as e:
+        logger.error("读取HTML文件失败: %s", str(e))
+
     async def index_handler(_):
         """处理根路径，返回Web控制界面"""
-        # 读取静态HTML文件
-        import os
-        static_dir = os.path.join(os.path.dirname(__file__), 'static')
-        html_path = os.path.join(static_dir, 'index.html')
-        
-        try:
-            with open(html_path, 'r', encoding='utf-8') as f:
-                html = f.read()
-            return web.Response(text=html, content_type='text/html')
-        except Exception as e:
-            logger.error("读取HTML文件失败: %s", str(e))
+        if html_content is None:
             return web.Response(body=b'Error loading control page', status=500)
+        return web.Response(text=html_content, content_type='text/html')
 
     app.router.add_get('/metrics', metrics_handler)
     app.router.add_get('/control/{action}', control_handler)
@@ -106,7 +111,8 @@ async def init_metrics_collector(
         flush_interval: 刷新间隔
         buffer_size: 缓冲区大小
     """
-    metrics_collector = init_unified_collector(
+    # 重复初始化时 init_unified_collector 会先停止旧收集器注销其事件处理器
+    return await init_unified_collector(
         node,
         redis_client,
         node_id,
@@ -115,9 +121,6 @@ async def init_metrics_collector(
         flush_interval=flush_interval,
         buffer_size=buffer_size
     )
-    # 启动指标收集器（注册事件处理器）
-    await metrics_collector.start()
-    return metrics_collector
 
 
 async def start_prometheus_service(config, runner=None):
@@ -134,7 +137,7 @@ async def start_prometheus_service(config, runner=None):
     await site.start()
     logger.info(
         "Prometheus服务已启动，监听端口: %s", config.prometheus_port)
-    return prometheus_runner, True
+    return prometheus_runner
 
 
 # =============================================================================
@@ -142,18 +145,9 @@ async def start_prometheus_service(config, runner=None):
 # =============================================================================
 
 class WorkerNode:
-    """
-    工作节点信息数据类（纯数据结构）
+    """Master 端缓存的工作节点状态镜像（纯数据结构，无心跳逻辑）。
 
-    设计原则：
-    - 不包含心跳逻辑，由 DistributedCoordinator 统一管理
-    - 只缓存从 Redis 获取的最新状态
-    - 作为 Master 端的节点状态镜像
-
-    清理机制：
-    - 失联Worker通过 get_healthy_workers() 按需清理
-    - 提供两阶段清理：先标记MISSING，60秒宽限期后删除
-    - 避免持续轮询开销，提高资源利用效率
+    失联节点由 get_healthy_workers() 按需清理：先标记 MISSING，60 秒宽限期后删除。
     """
 
     def __init__(self, node_id: str):
@@ -214,30 +208,9 @@ class WorkerNode:
 # =============================================================================
 
 class LocalRunner(BaseRunner):
-    """
-    本地负载测试运行器（单机模式）
+    """本地负载测试运行器（单机模式）。
 
-    功能职责:
-    - 本地用户管理和负载执行
-    - Prometheus HTTP 指标服务启动
-    - 系统资源监控（CPU、用户数）
-    - 测试生命周期管理
-
-    架构特点:
-    - 继承 BaseRunner，通过组合模式获得基础组件
-    - 集成统一的指标收集器和任务管理器
-    - 提供完整的本地测试环境
-
-    组件集成:
-    - UserManager: 用户创建、启动和停止
-    - TaskManager: 后台监控任务管理
-    - StateManager: 状态机管理
-    - 统一指标收集器: Prometheus 指标记录
-
-    典型用法:
-    1. 使用 RunnerFactory.create("local", ...) 创建实例
-    2. 调用 start() 启动负载测试
-    3. 调用 stop() 停止测试并清理资源
+    在 BaseRunner 基础上增加本地指标收集与 Prometheus HTTP 指标服务。
     """
 
     def __init__(self, user_types, load_shape, config):
@@ -269,7 +242,8 @@ class LocalRunner(BaseRunner):
         await self._init_metrics(redis_client=None, node_id="local", coordinator=None)
 
         # 启动 Prometheus HTTP 服务（使用通用方法）
-        self.prometheus_runner, self.prometheus_server_started = await start_prometheus_service(self.config, self)
+        self.prometheus_runner = await start_prometheus_service(self.config, self)
+        self.prometheus_server_started = True
 
     async def start(self) -> None:
         """启动本地测试"""
@@ -292,6 +266,12 @@ class LocalRunner(BaseRunner):
 
         try:
             await self.state_manager.transition_state(RunnerState.STOPPING)
+
+            # 停止负载形状管理器：形状任务不在 task_manager 中，
+            # cancel_all_tasks 无法停止它；若不停止，STOPPING 后形状仍会
+            # 继续 tick 并触发 apply_load 重新拉起用户，导致停止失效
+            if self._load_shape_manager:
+                await self._load_shape_manager.stop()
 
             # 停止指标收集器
             if self.metrics_collector:
@@ -325,30 +305,33 @@ class LocalRunner(BaseRunner):
             self._collect_cpu_metrics(),
             name="cpu_metrics_collector")
 
-        while not self.state_manager.is_in_quit_state():
-            try:
-                # 使用统一的收集器记录指标
-                if hasattr(
-                        self, 'metrics_collector') and self.metrics_collector:
-                    node_metrics = {
-                        "cpu_percent": self.cpu_usage,
-                        "active_users": self.active_user_count,  # LocalRunner直接获取活跃用户数
-                        "worker_id": self.node,
-                        "machine_id": self.machine_id
-                    }
-                    await self.metrics_collector.record_node_metrics(node_metrics)
-            except Exception as e:
-                logger.error("收集本地节点指标失败: %s", str(e))
-            finally:
-                await asyncio.sleep(self.metrics_collection_interval)
-
-        # 退出时取消CPU收集任务
-        if not cpu_task.done():
-            cpu_task.cancel()
-            try:
-                await cpu_task
-            except asyncio.CancelledError:
-                pass
+        try:
+            while not self.state_manager.is_in_quit_state():
+                try:
+                    # 使用统一的收集器记录指标
+                    if hasattr(
+                            self, 'metrics_collector') and self.metrics_collector:
+                        node_metrics = {
+                            "cpu_percent": self.cpu_usage,
+                            "active_users": self.active_user_count,  # LocalRunner直接获取活跃用户数
+                            "worker_id": self.node,
+                            "machine_id": self.machine_id
+                        }
+                        await self.metrics_collector.record_node_metrics(node_metrics)
+                except Exception as e:
+                    logger.error("收集本地节点指标失败: %s", str(e))
+                finally:
+                    await asyncio.sleep(self.metrics_collection_interval)
+        finally:
+            # cpu_task 未纳入 task_manager，stop()→cancel_all_tasks 取消本任务时
+            # CancelledError 会跳过循环后的清理；用 try/finally 保证无论正常退出
+            # 还是被取消都回收 CPU 子任务，避免其孤儿运行（stop 不置 is_quit）
+            if not cpu_task.done():
+                cpu_task.cancel()
+                try:
+                    await cpu_task
+                except asyncio.CancelledError:
+                    pass
 
 
 # =============================================================================
@@ -356,15 +339,7 @@ class LocalRunner(BaseRunner):
 # =============================================================================
 
 class WorkerRunner(BaseRunner):
-    """
-    工作节点运行器
-
-    职责：
-    - 接收主节点命令
-    - 执行负载测试
-    - 上报运行状态
-    - 心跳机制
-    """
+    """工作节点运行器：接收主节点命令、执行负载并上报心跳与运行状态。"""
 
     def __init__(self, user_types, load_shape, config, redis_client):
         """
@@ -382,6 +357,9 @@ class WorkerRunner(BaseRunner):
         self.client_id = str(uuid4())
         self.coordinator = DistributedCoordinator(
             redis_client, role=NODE_TYPE_WORKER, node_id=self.client_id)
+
+        # 命令监听器订阅完成信号：心跳首轮发送前等待，避免启动命令丢失
+        self._command_ready = asyncio.Event()
 
     @property
     def load_shape_manager(self):
@@ -401,11 +379,11 @@ class WorkerRunner(BaseRunner):
         )
 
         # 保存协程引用，在 start() 中统一启动，避免 initialize 阶段就开始采集数据
-        self._command_listener_coro = self.coordinator.listen_commands(self._handle_command)
+        self._command_listener_coro = self.coordinator.listen_commands(
+            self._handle_command, ready_event=self._command_ready)
         self._pending_background_tasks = [
             (self._collect_cpu_metrics, "worker_metrics_collector"),
             (self._send_heartbeat, "worker_heartbeat_sender"),
-            (self._check_quit_status, "quit_status_checker"),
         ]
 
         # Worker节点初始化完成
@@ -451,6 +429,18 @@ class WorkerRunner(BaseRunner):
 
     async def _send_heartbeat(self) -> None:
         """心跳发送任务"""
+        # 等待命令监听器完成订阅后再发送首轮心跳：
+        # 心跳一旦被Master观测到，Master可能立即广播启动命令，
+        # 若Worker尚未订阅命令频道，启动命令将丢失
+        command_ready = getattr(self, "_command_ready", None)
+        if command_ready:
+            try:
+                await asyncio.wait_for(
+                    command_ready.wait(), timeout=HEARTBEAT_INTERVAL * 5)
+            except asyncio.TimeoutError:
+                # 订阅异常时兜底继续发心跳，避免Worker永远不可见
+                logger.error("命令监听器订阅超时，启动命令可能丢失")
+
         while not self.state_manager.is_in_quit_state():
             try:
                 # 统一使用StateManager的状态，保持一致性
@@ -481,16 +471,6 @@ class WorkerRunner(BaseRunner):
     async def _send_stop(self):
         """发送停止确认"""
         await self.coordinator.publish("command", {}, worker_id=self.client_id, command="stop")
-
-    async def _check_quit_status(self):
-        """定期检查退出状态，通过命令通道接收Master节点的quit命令"""
-        while not self.state_manager.is_in_quit_state():
-            try:
-                # 每5秒检查一次退出状态
-                await asyncio.sleep(5.0)
-            except Exception as e:
-                logger.warning("检查退出状态失败: %s", e)
-                await asyncio.sleep(5.0)
 
     async def _handle_command(self, data: dict, worker_id: str, command: str):
         """统一的命令处理器"""
@@ -530,16 +510,9 @@ class WorkerRunner(BaseRunner):
 # =============================================================================
 
 class MasterRunner:
-    """
-    主节点运行器（分布式协调器）
+    """主节点运行器（分布式协调器）：管理 Worker 节点、分配负载、协调全局状态。
 
-    职责：
-    - 分布式节点管理
-    - 负载分配策略
-    - 全局状态协调
-    - Worker 节点监控
-
-    注意：不再继承BaseRunner，因为Master节点不直接运行用户
+    不继承 BaseRunner——Master 不直接运行用户。
     """
 
     def __init__(self, user_types, load_shape, config, redis_client):
@@ -570,11 +543,14 @@ class MasterRunner:
         self.metrics_collector = None
         self.cpu_usage = 0
 
-        # 后台任务
-        self.background_tasks: List[asyncio.Task] = []
+        # 后台任务（与 BaseRunner 一致，由 TaskManager 统一管理）
+        self.task_manager = TaskManager()
 
         # 负载形状管理器
         self._load_shape_manager = None
+
+        # 停止流程幂等收尾标志（_handle_command 全部确认与超时看门狗共用）
+        self._stop_finalized = False
 
         # Prometheus服务相关
         self.prometheus_runner = None
@@ -614,7 +590,8 @@ class MasterRunner:
         )
 
         # 启动 Prometheus HTTP 服务（使用通用方法）
-        self.prometheus_runner, self.prometheus_server_started = await start_prometheus_service(self.config, self)
+        self.prometheus_runner = await start_prometheus_service(self.config, self)
+        self.prometheus_server_started = True
 
         # 添加后台任务（使用DistributedCoordinator的统一监听器）
         request_listener_task = asyncio.create_task(
@@ -636,7 +613,7 @@ class MasterRunner:
             name="node_status_listener"
         )
 
-        self.background_tasks.extend([
+        self.task_manager.add_tasks([
             request_listener_task,
             command_listener_task,
             node_status_task,
@@ -688,9 +665,8 @@ class MasterRunner:
                 if stopped_workers >= total_workers:
                     logger.info(
                         "所有 %d 个 Worker 已完成停止操作", stopped_workers)
-                    # 所有Worker都停止完成，可以安全转换状态和触发事件
-                    await self.state_manager.transition_state(RunnerState.READY)
-                    await test_stop.fire(runner=self)
+                    # 全部Worker确认完成，幂等收尾（与超时看门狗共用同一出口）
+                    await self._finalize_stop()
         else:
             logger.debug(
                 "Master 收到来自 %s 的未知命令: %s", worker_id, command)
@@ -707,15 +683,20 @@ class MasterRunner:
         try:
             # 如果是首次启动(从READY或STARTING状态),需要等待Worker启动完成
             if current_state in [RunnerState.READY, RunnerState.STARTING]:
+                # 过滤出健康 Worker（心跳存活且状态非 MISSING）：
+                # 失联节点收不到启动命令，将其计入预期会导致启动超时
+                healthy_workers = await self.get_healthy_workers()
+
                 # 设置启动完成跟踪
                 self._startup_completion_tracker = {
-                    "expected_workers": len(self.workers),
+                    "expected_workers": len(healthy_workers),
                     "completed_workers": set(),
                     "startup_data": {"user_count": user_count, "rate": rate}
                 }
 
-                # 广播启动命令到所有 Worker
-                await self._broadcast_startup(user_count, rate)
+                # 广播启动命令到所有健康 Worker
+                await self._broadcast_startup(
+                    user_count, rate, healthy_workers=healthy_workers)
 
                 # 等待所有Worker启动完成(设置超时)
                 await self._wait_for_workers_startup_completion()
@@ -794,6 +775,12 @@ class MasterRunner:
         await self.state_manager.transition_state(RunnerState.STOPPING)
 
         try:
+            # 停止负载形状管理器：形状任务不在 task_manager 中，
+            # 若不停止，STOPPING 期间形状仍会广播启动命令给 Worker，
+            # 导致停止失效、测试被重新拉起
+            if self._load_shape_manager:
+                await self._load_shape_manager.stop()
+
             # 停止指标收集器
             if self.metrics_collector:
                 await self.metrics_collector.stop()
@@ -806,6 +793,7 @@ class MasterRunner:
 
             # 初始化停止完成跟踪器
             healthy_workers = await self.get_healthy_workers()
+            self._stop_finalized = False
             self._stop_completion_tracker = {
                 "stopped_workers": set(),
                 "total_workers": len(healthy_workers)
@@ -818,10 +806,49 @@ class MasterRunner:
                 "已发送停止命令到 %d 个 Worker",
                 self._stop_completion_tracker['total_workers'])
 
-            # 不立即转换状态和触发事件，等待所有Worker确认完成
+            if not healthy_workers:
+                # 无健康Worker：无人会回停止确认，直接幂等收尾，
+                # 避免 total_workers=0 时永久卡在 STOPPING
+                await self._finalize_stop()
+            else:
+                # 有Worker：启动超时看门狗兜底，防止个别Worker在确认前失联
+                # 导致计数永远差一个而永久卡死；全部确认时 _handle_command
+                # 会提前幂等收尾，看门狗检测到 _stop_finalized 后随即退出
+                watchdog = asyncio.create_task(
+                    self._watch_stop_completion(),
+                    name="stop_completion_watchdog")
+                self.task_manager.add_task(watchdog)
 
         except Exception as e:
             logger.error("Master停止失败: %s", str(e))
+            raise
+
+    async def _finalize_stop(self) -> None:
+        """幂等收尾停止流程：转 READY 并触发 test_stop（仅执行一次）。
+
+        _handle_command（全部Worker确认）与 _watch_stop_completion（超时兜底）
+        共用此出口；_stop_finalized 在首个 await 之前同步置位，避免两条路径
+        并发重复转换状态/重复触发事件。
+        """
+        if self._stop_finalized:
+            return
+        self._stop_finalized = True
+        if self.state_manager.get_current_state() == RunnerState.STOPPING:
+            await self.state_manager.transition_state(RunnerState.READY)
+            await test_stop.fire(runner=self)
+
+    async def _watch_stop_completion(self, timeout: float = 30.0) -> None:
+        """停止确认超时看门狗：超时仍未收尾则强制完成，避免永久卡在 STOPPING。"""
+        start_time = asyncio.get_running_loop().time()
+        try:
+            while not self._stop_finalized and not self.state_manager.is_in_quit_state():
+                if asyncio.get_running_loop().time() - start_time > timeout:
+                    logger.warning(
+                        "Worker停止确认超时(%.0fs)，强制完成停止流程", timeout)
+                    await self._finalize_stop()
+                    return
+                await asyncio.sleep(0.5)
+        except asyncio.CancelledError:
             raise
 
     async def quit(self):
@@ -839,9 +866,9 @@ class MasterRunner:
         except Exception as e:
             logger.warning("发送退出命令到Worker失败: %s", e)
 
-        # 设置退出状态
+        # 设置退出状态（is_quit 标志是退出真相，
+        # 置位后 transition_state 会早退，无需再转换状态）
         self.state_manager.set_quit_state()
-        await self.state_manager.transition_state(RunnerState.QUITTING)
 
         # 停止指标收集器
         if self.metrics_collector:
@@ -853,14 +880,11 @@ class MasterRunner:
             self.prometheus_runner = None
             self.prometheus_server_started = False
 
-        # 取消所有后台任务
-        for task in self.background_tasks:
-            if not task.done():
-                task.cancel()
+        # 取消所有后台任务（与 BaseRunner 一致，由 TaskManager 统一管理）
+        await self.task_manager.cancel_all_tasks()
 
-        if self.background_tasks:
-            await asyncio.gather(*self.background_tasks, return_exceptions=True)
-            self.background_tasks.clear()
+        # 触发测试退出事件（quit 入口有 is_quit 早退保护，不会重复触发）
+        await test_quit.fire(runner=self)
 
         logger.info("Master运行器已成功退出")
 
@@ -872,6 +896,9 @@ class MasterRunner:
             return
 
         await self.state_manager.transition_state(RunnerState.PAUSED)
+        # 暂停负载形状的计时
+        if self.load_shape and hasattr(self.load_shape, 'pause'):
+            self.load_shape.pause()
         # 向所有Worker发送pause命令
         try:
             await self.coordinator.publish("command", {}, command="pause")
@@ -887,6 +914,9 @@ class MasterRunner:
             return
 
         await self.state_manager.transition_state(RunnerState.RUNNING)
+        # 恢复负载形状的计时
+        if self.load_shape and hasattr(self.load_shape, 'resume'):
+            self.load_shape.resume()
         # 向所有Worker发送resume命令
         try:
             await self.coordinator.publish("command", {}, command="resume")
@@ -922,21 +952,62 @@ class MasterRunner:
 
         return distribution
 
-    async def _broadcast_startup(self, user_count: int, rate: float) -> None:
-        """广播启动命令到所有 Worker 节点"""
-        if not self.workers:
+    def _distribute_rate(self, rate: float, total_workers: int) -> List[float]:
+        """
+        将总速率均匀分配给所有 Worker 节点（保留小数精度）
+
+        参数：
+            rate: 总速率（用户/秒）
+            total_workers: Worker 节点总数
+
+        返回：
+            List[float]: 每个 Worker 分配的速率列表，总和精确等于 rate
+        """
+        if total_workers == 0:
+            return []
+
+        base_rate = rate / total_workers
+        distribution = [base_rate] * total_workers
+        # 舍入误差补偿：最后一个 Worker 承担余数，保证总和精确等于 rate
+        distribution[-1] = rate - base_rate * (total_workers - 1)
+        return distribution
+
+    async def _broadcast_startup(
+            self, user_count: int, rate: float,
+            healthy_workers: List['WorkerNode'] = None) -> None:
+        """
+        广播启动命令到所有健康 Worker 节点
+
+        参数：
+            healthy_workers: 健康 Worker 列表。为 None 时内部通过
+                get_healthy_workers() 获取（含心跳检查，过滤失联节点）。
+        """
+        # 过滤失联 Worker：它们收不到启动命令，计入分配会丢失用户数、
+        # 计入等待会拖到启动超时
+        if healthy_workers is None:
+            healthy_workers = await self.get_healthy_workers()
+        if not healthy_workers:
             raise RunnerError("No ready workers available")
 
-        total_workers = len(self.workers)
+        total_workers = len(healthy_workers)
+
+        # 校验：每个Worker至少能分到1个用户，否则报错退出。
+        # 发送 user_count=0 会在Worker端触发参数校验失败，
+        # 而异常路径仍上报启动完成，导致启动"假成功"
+        if user_count < total_workers:
+            raise RunnerError(
+                f"用户数({user_count})少于健康Worker数({total_workers})，"
+                "无法为每个Worker分配至少1个用户，"
+                "请增加用户数或减少Worker数量")
 
         # 计算分配方案
         user_distribution = self._distribute_resources(
             user_count, total_workers)
-        rate_distribution = self._distribute_resources(
-            int(rate), total_workers)
+        # 速率按浮点均分，避免 int() 截断导致部分 Worker 速率为 0
+        rate_distribution = self._distribute_rate(rate, total_workers)
 
-        # 为每个 Worker 发送启动命令
-        worker_ids = sorted(self.workers.keys())
+        # 为每个健康 Worker 发送启动命令
+        worker_ids = sorted(worker.node_id for worker in healthy_workers)
         for i, worker_id in enumerate(worker_ids):
             startup_data = {
                 "user_count": user_distribution[i],
@@ -974,7 +1045,7 @@ class MasterRunner:
         获取所有健康的Worker节点（包含按需清理）
 
         逻辑：
-        1. 检查节点状态是否健康（READY/RUNNING/STARTING/STOPPING）
+        1. 检查节点状态是否健康（READY/RUNNING/STARTING/STOPPING/PAUSED）
         2. 通过 DistributedCoordinator 检查节点心跳状态
         3. 清理长期失联的Worker（避免内存泄漏）
         """
@@ -987,9 +1058,11 @@ class MasterRunner:
                 is_alive = await self.coordinator.check_worker_heartbeat(node_id)
 
                 if is_alive:
-                    # 节点存活，检查状态是否健康
+                    # 节点存活，检查状态是否健康。
                     if worker.status in [
-                            RunnerState.READY, RunnerState.RUNNING, RunnerState.STARTING, RunnerState.STOPPING]:
+                            RunnerState.READY, RunnerState.RUNNING,
+                            RunnerState.STARTING, RunnerState.STOPPING,
+                            RunnerState.PAUSED]:
                         healthy_workers.append(worker)
                 else:
                     # 节点失联，处理状态和清理
